@@ -48,7 +48,7 @@ export default function NotesView({ notes, onSaveNote, onDeleteNote, isLoading, 
         return notes.find(n => n.id === selectedNoteId);
     }, [notes, selectedNoteId]);
     
-    const selectedNoteRef = useRef<Note | undefined>();
+    const selectedNoteRef = useRef<Note | undefined>(undefined);
     selectedNoteRef.current = selectedNote;
 
     useEffect(() => {
@@ -74,28 +74,46 @@ export default function NotesView({ notes, onSaveNote, onDeleteNote, isLoading, 
         const currentNote = selectedNoteRef.current;
         if (currentNote && (debouncedTitle !== currentNote.title || debouncedContent !== currentNote.content)) {
             if (debouncedTitle.trim() === '' && debouncedContent.trim() === '') return;
-            setIsSaving(true);
-            onSaveNote({
-                ...currentNote,
-                title: debouncedTitle.trim() || 'Nota sin título',
-                content: debouncedContent,
-            }).finally(() => setIsSaving(false));
+            
+            const performSave = async () => {
+                setIsSaving(true);
+                try {
+                    await onSaveNote({
+                        ...currentNote,
+                        title: debouncedTitle.trim() || 'Nota sin título',
+                        content: debouncedContent,
+                        updatedAt: new Date().toISOString()
+                    });
+                } finally {
+                    setIsSaving(false);
+                }
+            };
+
+            performSave();
         }
     }, [debouncedTitle, debouncedContent, onSaveNote]);
     
-    const handleCreateNewNote = () => {
-        onSaveNote({ id: 0, title: 'Nueva Nota', content: '', updatedAt: new Date().toISOString() });
+    const handleCreateNewNote = async () => {
+        const newNoteData: Note = { 
+            id: 0, // ID will be assigned by the hook
+            title: 'Nueva Nota', 
+            content: '', 
+            updatedAt: new Date().toISOString() 
+        };
+        await onSaveNote(newNoteData);
+        // The selection logic is now handled in the hook, which is more robust
     };
     
     useEffect(() => {
-        const newlyCreatedNote = notes.find(note => !selectedNoteId || (note.id !== selectedNoteId && note.title === 'Nueva Nota' && note.content === ''));
-        if (newlyCreatedNote) {
-             const timeSinceCreation = Math.abs(new Date().getTime() - new Date(newlyCreatedNote.updatedAt).getTime());
-             if (timeSinceCreation < 1500) { 
-                 setSelectedNoteId(newlyCreatedNote.id);
+        // Automatically select a newly created note
+        const newNote = notes.find(n => n.title === 'Nueva Nota' && n.content === '');
+        if (newNote) {
+             const timeSinceCreation = new Date().getTime() - new Date(newNote.updatedAt).getTime();
+             if (timeSinceCreation < 1500) { // Check if created within the last 1.5s
+                setSelectedNoteId(newNote.id);
              }
         }
-    }, [notes, selectedNoteId]);
+    }, [notes]);
 
     const handleDeleteClick = () => {
         if (selectedNote) {

@@ -1,14 +1,12 @@
-
 import React, { useState, FormEvent } from 'react';
 import { DollarSign, X } from 'lucide-react';
-import { Payment } from '../../types';
 
 interface AddPaymentModalProps {
     modalState: {
         isOpen: boolean;
     };
     onClose: () => void;
-    onSave: (data: Omit<Payment, 'id' | 'date'>) => void;
+    onSave: (data: { patient: string; whatsapp: string; para: string; amount: number; bank: string; }) => void;
 }
 
 const AddPaymentModal: React.FC<AddPaymentModalProps> = ({ modalState, onClose, onSave }) => {

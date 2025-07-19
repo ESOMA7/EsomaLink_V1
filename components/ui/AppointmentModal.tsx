@@ -9,7 +9,7 @@ interface AppointmentModalProps {
         date: Date | null;
     };
     onClose: () => void;
-    onSave: (data: Omit<AppointmentEvent, 'title'>) => void;
+    onSave: (data: Omit<AppointmentEvent, 'title' | 'id'> & { id?: number }) => void;
     onDelete: (id: number, title: string) => void;
 }
 
@@ -65,7 +65,7 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ modalState, onClose
         }
 
         const eventData = { 
-            id: event?.id || 0, // 0 for new event
+            id: event?.id, // undefined for new event
             patient, 
             procedure, 
             professional, 

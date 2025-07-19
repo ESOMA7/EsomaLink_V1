@@ -1,8 +1,8 @@
-
+// Simple User type for mock authentication
 export interface User {
     id: string;
     email: string;
-    // Will be populated with more details from Supabase Auth
+    name: string;
 }
 
 export interface AppointmentEvent {
@@ -25,10 +25,11 @@ export interface Intervention {
 }
 
 export interface Payment {
-    id: string;
+    id: number;
+    transaction_id: string;
     patient: string;
     whatsapp: string;
-    para: string;
+    para: string; // "Concept"
     amount: number;
     bank: string;
     date: string;

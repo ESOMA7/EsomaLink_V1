@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Payment } from '../../types';
 import { Trash2, PlusCircle } from 'lucide-react';
@@ -7,7 +6,7 @@ import { ErrorMessage } from '../ui/ErrorMessage';
 
 interface PaymentsViewProps {
     payments: Payment[];
-    onDelete: (id: string, patientName: string) => void;
+    onDelete: (id: number, patientName: string) => void;
     onAdd: () => void;
     isLoading: boolean;
     error: string | null;
@@ -47,7 +46,7 @@ const PaymentsView: React.FC<PaymentsViewProps> = ({ payments, onDelete, onAdd, 
                             {payments.length > 0 ? payments.map((payment) => (
                                 <tr key={payment.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="text-sm font-mono text-slate-500 dark:text-slate-400">{payment.id}</div>
+                                        <div className="text-sm font-mono text-slate-500 dark:text-slate-400">{payment.transaction_id}</div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <div className="text-sm font-medium text-slate-900 dark:text-slate-100">{payment.patient}</div>

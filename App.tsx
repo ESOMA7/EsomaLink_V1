@@ -21,12 +21,14 @@ import { useAppointments } from './hooks/useAppointments';
 import { useInterventions } from './hooks/useInterventions';
 import { usePayments } from './hooks/usePayments';
 import { useNotes } from './hooks/useNotes';
+import { LoaderCircle } from 'lucide-react';
+
 
 const App: React.FC = () => {
     const [currentView, setCurrentView] = useState<View>('dashboard');
     
     // Custom Hooks for state management
-    const { isAuthenticated, login, loginWithGoogle, logout, isAuthLoading, authError, setAuthError } = useAuth();
+    const { user, isAuthenticated, loginWithGoogle, logout, isAuthLoading, authError, setAuthError } = useAuth();
     const { events, saveAppointment, deleteAppointment, updateAppointmentDate, isLoading: appointmentsLoading, error: appointmentsError } = useAppointments();
     const { interventions, saveIntervention, deleteIntervention, updateInterventionStatus, isLoading: interventionsLoading, error: interventionsError } = useInterventions();
     const { payments, savePayment, deletePayment, isLoading: paymentsLoading, error: paymentsError } = usePayments();
@@ -70,7 +72,7 @@ const App: React.FC = () => {
         });
     }, [logout]);
 
-    const handleSaveAppointment = useCallback(async (data: Omit<AppointmentEvent, 'title'>) => {
+    const handleSaveAppointment = useCallback(async (data: Omit<AppointmentEvent, 'title' | 'id'> & {id?:number}) => {
         await saveAppointment(data);
         setAppointmentModal({ isOpen: false, event: null, date: null });
     }, [saveAppointment]);
@@ -83,13 +85,13 @@ const App: React.FC = () => {
         }});
     }, [deleteAppointment]);
     
-    const handleSavePayment = useCallback(async (data: Omit<Payment, 'id' | 'date'>) => {
+    const handleSavePayment = useCallback(async (data: Omit<Payment, 'id' | 'date' | 'transaction_id'>) => {
         await savePayment(data);
         playNotification();
         setPaymentModal({ isOpen: false });
     }, [savePayment, playNotification]);
 
-    const handleDeletePayment = useCallback((paymentId: string, patientName: string) => {
+    const handleDeletePayment = useCallback((paymentId: number, patientName: string) => {
         setConfirmationModal({ isOpen: true, message: `¿Estás seguro de que deseas eliminar el pago de "${patientName}"?`, onConfirm: async () => {
             await deletePayment(paymentId);
             setConfirmationModal({ isOpen: false, message: '', onConfirm: null });
@@ -175,8 +177,16 @@ const App: React.FC = () => {
         }
     };
 
+    if (isAuthLoading) {
+        return (
+            <div className="flex h-screen w-full items-center justify-center bg-slate-100 dark:bg-slate-900">
+                <LoaderCircle className="h-12 w-12 animate-spin text-orange-500" />
+            </div>
+        );
+    }
+    
     if (!isAuthenticated) {
-        return <LoginView onLogin={login} onLoginWithGoogle={loginWithGoogle} isLoading={isAuthLoading} error={authError} setError={setAuthError} />;
+        return <LoginView onLoginWithGoogle={loginWithGoogle} isLoading={false} error={authError} setError={setAuthError} />;
     }
 
     return (

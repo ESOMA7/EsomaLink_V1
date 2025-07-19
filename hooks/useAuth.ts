@@ -1,48 +1,80 @@
+// En hooks/useAuth.ts
 
-import { useState, useCallback, useMemo } from 'react';
-import { User } from '../types';
+import { useState, useCallback, useEffect } from 'react';
+// 1. Importar el cliente de Supabase (¡Esto es crucial!)
+import { supabase } from '../services/supabaseClient';
+// Definimos nuestro tipo de usuario para la aplicación
+interface AppUser {
+  id: string;
+  email?: string;
+  name?: string;
+}
 
 export const useAuth = () => {
-    // In a real app, you would check localStorage or a cookie for a session
-    const [user, setUser] = useState<User | null>(null);
-    const [isAuthLoading, setIsLoading] = useState(false);
+    const [user, setUser] = useState<AppUser | null>(null);
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [isAuthLoading, setIsLoading] = useState(true);
     const [authError, setAuthError] = useState<string | null>(null);
 
-    const isAuthenticated = useMemo(() => !!user, [user]);
+    // 2. Escuchar el estado de autenticación REAL de Supabase
+    useEffect(() => {
+        // Esta función se ejecuta inmediatamente y cuando el estado de auth cambia (login/logout)
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+            (_event, session) => {
+                const supabaseUser = session?.user;
+                if (supabaseUser) {
+                    setUser({
+                        id: supabaseUser.id,
+                        email: supabaseUser.email,
+                        name: supabaseUser.user_metadata?.full_name || supabaseUser.email,
+                    });
+                    setIsAuthenticated(true);
+                } else {
+                    setUser(null);
+                    setIsAuthenticated(false);
+                }
+                // Ya sea que haya sesión o no, la carga inicial ha terminado
+                setIsLoading(false);
+            }
+        );
 
-    // Simulates logging in with email and password
-    const login = useCallback(async (email: string, password: string) => {
-        setIsLoading(true);
-        setAuthError(null);
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network request
-        if (email === 'test@esomalink.com' && password === 'password123') {
-            setUser({ id: '123', email: 'test@esomalink.com' });
-            setIsLoading(false);
-            return { success: true };
-        } else {
-            const errorMessage = 'Credenciales incorrectas. Inténtalo de nuevo.';
-            setAuthError(errorMessage);
-            setIsLoading(false);
-            return { success: false, error: errorMessage };
-        }
+        // Limpiar la suscripción cuando el componente se desmonte
+        return () => subscription.unsubscribe();
     }, []);
     
-    // Simulates logging in with Google
-    const loginWithGoogle = useCallback(async () => {
+    // 3. Implementación REAL de login con Google
+    const loginWithGoogle = useCallback(async (): Promise<{ success: boolean; }> => {
         setIsLoading(true);
         setAuthError(null);
-        await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate network request & popup
-        setUser({ id: '456', email: 'google.user@example.com' });
-        setIsLoading(false);
+
+        const { error } = await supabase.auth.signInWithOAuth({
+            provider: 'google',
+        });
+
+        if (error) {
+            console.error('Error durante el inicio de sesión con Google:', error);
+            setAuthError(error.message);
+            setIsLoading(false);
+            return { success: false };
+        }
+        
+        // No necesitamos hacer más aquí, el onAuthStateChange se encargará del resto
         return { success: true };
     }, []);
 
+    // 4. Implementación REAL de logout
     const logout = useCallback(async () => {
         setIsLoading(true);
-        await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network request
-        setUser(null);
-        setIsLoading(false);
+        const { error } = await supabase.auth.signOut();
+        
+        if (error) {
+            console.error('Error durante el cierre de sesión:', error);
+            setAuthError(error.message);
+            setIsLoading(false);
+        }
+        
+        // onAuthStateChange se encargará de actualizar el estado a "no autenticado"
     }, []);
 
-    return { user, isAuthenticated, isAuthLoading, authError, setAuthError, login, loginWithGoogle, logout };
+    return { user, isAuthenticated, isAuthLoading, authError, setAuthError, loginWithGoogle, logout };
 };
