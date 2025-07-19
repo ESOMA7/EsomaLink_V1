@@ -9,54 +9,47 @@ export const useInterventions = () => {
     const [error, setError] = useState<string | null>(null);
     
     useEffect(() => {
-        const fetchInterventions = async () => {
-            setIsLoading(true);
-            setError(null);
+        // Simulate fetching data
+        setIsLoading(true);
+        setTimeout(() => {
             try {
-                // Simulate API call
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                setInterventions(initialInterventions.sort((a,b) => b.id - a.id));
-            } catch (err) {
-                setError("No se pudieron cargar las intervenciones.");
+                setInterventions(initialInterventions);
+                setError(null);
+            } catch (e) {
+                setError("Error al cargar los datos de las intervenciones.");
+                console.error(e);
             } finally {
                 setIsLoading(false);
             }
-        };
-        fetchInterventions();
+        }, 800);
     }, []);
 
     const saveIntervention = useCallback(async (data: { id?: number; patient: string; phone: string; reason: string; }) => {
-        await new Promise(resolve => setTimeout(resolve, 300));
-        if (data.id) { // Update
-            setInterventions(prev => prev.map(i => 
-                i.id === data.id 
-                ? { ...i, patient: data.patient, phone: data.phone, reason: data.reason } 
-                : i
-            ));
-        } else { // Create
-            const newIntervention: Intervention = {
-                id: Date.now(),
-                patient: data.patient,
-                phone: data.phone,
-                reason: data.reason,
-                date: new Date().toISOString().split('T')[0],
-                status: 'Pendiente'
-            };
-            setInterventions(prev => [newIntervention, ...prev].sort((a,b) => b.id - a.id));
-        }
+        setInterventions(prev => {
+            if (data.id) {
+                // Update
+                return prev.map(i => i.id === data.id ? { ...i, ...data } : i);
+            } else {
+                // Create
+                const newIntervention: Intervention = {
+                    id: Date.now(),
+                    ...data,
+                    date: new Date().toISOString().split('T')[0],
+                    status: 'Pendiente',
+                };
+                return [newIntervention, ...prev];
+            }
+        });
         return { success: true };
     }, []);
     
     const deleteIntervention = useCallback(async (interventionId: number) => {
-        await new Promise(resolve => setTimeout(resolve, 300));
         setInterventions(prev => prev.filter(i => i.id !== interventionId));
         return { success: true };
     }, []);
 
     const updateInterventionStatus = useCallback(async (id: number, newStatus: Intervention['status']) => {
-        await new Promise(resolve => setTimeout(resolve, 100));
         setInterventions(prev => prev.map(i => i.id === id ? { ...i, status: newStatus } : i));
-        return { success: true };
     }, []);
 
     return { interventions, isLoading, error, saveIntervention, deleteIntervention, updateInterventionStatus };

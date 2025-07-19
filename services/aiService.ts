@@ -10,30 +10,25 @@ import { Intervention } from '../types';
  * and you would call those functions from the client instead.
  */
 
-// This client-side initialization is for DEMO and DEVELOPMENT PURPOSES ONLY.
-const API_KEY = process.env.API_KEY;
+// --- IMPORTANT ---
+// The value below is a placeholder. You must replace it with your own
+// Google AI API Key for the AI features to work.
+// You can get a key from Google AI Studio.
+const API_KEY = "YOUR_GEMINI_API_KEY"; // Replace with your API Key
+
 let ai: GoogleGenAI | null = null;
-if (API_KEY) {
+
+// Only initialize the AI client if a real API key has been provided.
+if (API_KEY && API_KEY !== "YOUR_GEMINI_API_KEY") {
     ai = new GoogleGenAI({ apiKey: API_KEY });
 } else {
-    console.warn("API_KEY environment variable not set. AI features will not work.");
+    console.warn("Google AI API Key not configured. Please replace the placeholder in `services/aiService.ts`. AI features will not work.");
 }
 
 
 const generateInterventionResponse = async (intervention: Intervention): Promise<string> => {
-    /*
-     * PRODUCTION IMPLEMENTATION (example):
-     *
-     * import { supabase } from './supabaseClient';
-     * const { data, error } = await supabase.functions.invoke('generate-intervention-response', {
-     *   body: { intervention },
-     * });
-     * if (error) throw new Error(error.message);
-     * return data.responseText;
-     */
-    
     if (!ai) {
-        return "El servicio de IA no está disponible. La API_KEY no está configurada.";
+        return "El servicio de IA no está disponible. Por favor, configura tu API_KEY en el archivo `services/aiService.ts`.";
     }
 
     const { patient, reason } = intervention;
@@ -56,7 +51,7 @@ const generateInterventionResponse = async (intervention: Intervention): Promise
 
     try {
         const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash-preview-04-17",
+            model: "gemini-2.5-flash",
             contents: prompt,
             config: {
                 temperature: 0.7,
@@ -71,8 +66,6 @@ const generateInterventionResponse = async (intervention: Intervention): Promise
     }
 };
 
-const aiService = {
+export const aiService = {
     generateInterventionResponse,
 };
-
-export default aiService;

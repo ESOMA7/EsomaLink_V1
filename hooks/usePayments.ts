@@ -9,35 +9,33 @@ export const usePayments = () => {
     const [error, setError] = useState<string | null>(null);
     
     useEffect(() => {
-        const fetchPayments = async () => {
-            setIsLoading(true);
-            setError(null);
+        // Simulate fetching data
+        setIsLoading(true);
+        setTimeout(() => {
             try {
-                // Simulate API call
-                await new Promise(resolve => setTimeout(resolve, 900));
                 setPayments(initialPayments);
-            } catch (err) {
-                setError("No se pudieron cargar los pagos.");
+                setError(null);
+            } catch (e) {
+                setError("Error al cargar los datos de los pagos.");
+                console.error(e);
             } finally {
                 setIsLoading(false);
             }
-        };
-        fetchPayments();
+        }, 1200);
     }, []);
 
-    const savePayment = useCallback(async (data: Omit<Payment, 'id' | 'date'>) => {
-        await new Promise(resolve => setTimeout(resolve, 300));
+    const savePayment = useCallback(async (data: Omit<Payment, 'id' | 'date' | 'transaction_id'>) => {
         const newPayment: Payment = {
+            id: Date.now(),
             ...data,
-            id: `TXN${Date.now().toString().slice(-6)}`,
+            transaction_id: `TXN${Date.now().toString().slice(-6)}`,
             date: new Date().toISOString().split('T')[0],
         };
         setPayments(prev => [newPayment, ...prev]);
         return { success: true };
     }, []);
     
-    const deletePayment = useCallback(async (paymentId: string) => {
-        await new Promise(resolve => setTimeout(resolve, 300));
+    const deletePayment = useCallback(async (paymentId: number) => {
         setPayments(prev => prev.filter(p => p.id !== paymentId));
         return { success: true };
     }, []);

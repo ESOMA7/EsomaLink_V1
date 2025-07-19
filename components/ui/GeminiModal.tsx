@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Intervention } from '../../types';
 import { X, Sparkles, Clipboard, Check, LoaderCircle } from 'lucide-react';
-import aiService from '../../services/aiService';
+import { aiService } from '../../services/aiService';
 
 interface GeminiModalProps {
     modalState: {
