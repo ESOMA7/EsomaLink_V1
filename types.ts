@@ -17,11 +17,13 @@ export interface AppointmentEvent {
 
 export interface Intervention {
     id: number;
-    patient: string;
-    phone: string;
-    reason: string;
-    date: string;
-    status: 'Resuelto' | 'En Proceso' | 'Pendiente';
+    nombre: string;
+    numeros: string;
+    fecha: string;
+    caso: string;
+    estado: 'Pendiente' | 'En Proceso' | 'Resuelto';
+    created_at?: string;
+    updated_at?: string;
 }
 
 export interface Payment {

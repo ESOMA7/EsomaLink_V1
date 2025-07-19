@@ -17,8 +17,6 @@ interface DashboardViewProps {
 
 const DashboardView: React.FC<DashboardViewProps> = ({ interventions, payments, appointments, setCurrentView, isLoading, error }) => {
     // Use a mock date consistent with the demo data to ensure the dashboard reflects the correct state.
-    const MOCK_NOW = new Date(2025, 6, 2); 
-
     if (isLoading) {
         return <DashboardViewSkeleton />;
     }
@@ -27,11 +25,10 @@ const DashboardView: React.FC<DashboardViewProps> = ({ interventions, payments, 
         return <ErrorMessage message={error} />;
     }
 
-    const todaysAppointments = appointments.filter(a => new Date(a.start).toDateString() === MOCK_NOW.toDateString()).length;
+    const todaysAppointments = appointments.filter(a => new Date(a.start).toDateString() === new Date().toDateString()).length;
     
-    const pendingCount = interventions.filter(i => i.status === 'Pendiente').length;
-    const inProcessCount = interventions.filter(i => i.status === 'En Proceso').length;
-    const resueltoCount = interventions.filter(i => i.status === 'Resuelto').length;
+    const pendingCount = interventions.filter(i => i.estado === 'Pendiente').length;
+    const inProcessCount = interventions.filter(i => i.estado === 'En Proceso').length;
 
     let interventionsIcon: React.ComponentType<any>;
     let interventionsTitle: string;
@@ -44,7 +41,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ interventions, payments, 
         interventionsTitle = "Intervenciones Pendientes";
         interventionsValue = pendingCount.toString();
         interventionsColor = 'red';
-        interventionsSubtitle = "Requieren acción inmediata";
+        interventionsSubtitle = `${inProcessCount} en proceso`;
     } else if (inProcessCount > 0) {
         interventionsIcon = AlertTriangle;
         interventionsTitle = "Intervenciones en Proceso";
@@ -54,7 +51,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ interventions, payments, 
     } else {
         interventionsIcon = CheckCircle;
         interventionsTitle = "Intervenciones al Día";
-        interventionsValue = resueltoCount.toString();
+        interventionsValue = "0";
         interventionsColor = 'green';
         interventionsSubtitle = "No hay casos urgentes";
     }
@@ -62,8 +59,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ interventions, payments, 
     const totalRevenue = payments.reduce((acc, curr) => acc + curr.amount, 0);
 
     const upcomingAppointments = appointments
-        .filter(a => a.start >= MOCK_NOW)
-        .sort((a,b) => a.start.getTime() - b.start.getTime())
+        .filter(a => new Date(a.start) >= new Date())
+        .sort((a,b) => new Date(a.start).getTime() - new Date(b.start).getTime())
         .slice(0, 5);
 
     return (
@@ -100,7 +97,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ interventions, payments, 
             <div className="mt-12 bg-white dark:bg-slate-800 p-6 rounded-lg shadow-md">
                 <h3 className="text-xl font-bold text-slate-700 dark:text-slate-200 mb-6">Próximas Citas</h3>
                 <div className="relative pl-6 after:absolute after:inset-y-0 after:w-px after:bg-slate-200 dark:after:bg-slate-700 after:left-0">
-                    {upcomingAppointments.map((app, index) => (
+                    {upcomingAppointments.map((app) => (
                         <div key={app.id} className="mb-8 relative">
                             <span className="absolute -left-[34px] top-1 flex h-6 w-6 items-center justify-center rounded-full bg-green-200 dark:bg-green-500/20 ring-8 ring-white dark:ring-slate-800">
                                 <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />

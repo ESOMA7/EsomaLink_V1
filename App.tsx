@@ -28,7 +28,7 @@ const App: React.FC = () => {
     const [currentView, setCurrentView] = useState<View>('dashboard');
     
     // Custom Hooks for state management
-    const { user, isAuthenticated, loginWithGoogle, logout, isAuthLoading, authError, setAuthError } = useAuth();
+    const { isAuthenticated, loginWithGoogle, logout, isAuthLoading, authError, setAuthError } = useAuth();
     const { events, saveAppointment, deleteAppointment, updateAppointmentDate, isLoading: appointmentsLoading, error: appointmentsError } = useAppointments();
     const { interventions, saveIntervention, deleteIntervention, updateInterventionStatus, isLoading: interventionsLoading, error: interventionsError } = useInterventions();
     const { payments, savePayment, deletePayment, isLoading: paymentsLoading, error: paymentsError } = usePayments();
@@ -98,12 +98,12 @@ const App: React.FC = () => {
         }});
     }, [deletePayment]);
 
-    const handleSaveIntervention = useCallback(async (data: { id?: number; patient: string; phone: string; reason: string; }) => {
+    const handleSaveIntervention = useCallback(async (data: Omit<Intervention, 'id' | 'created_at' | 'updated_at'> & { id?: number }) => {
         await saveIntervention(data);
-        if(!data.id) playNotification();
+        playNotification();
         setInterventionModal({ isOpen: false, intervention: null });
     }, [saveIntervention, playNotification]);
-    
+
     const handleDeleteIntervention = useCallback((interventionId: number, patientName:string) => {
         setConfirmationModal({ isOpen: true, message: `¿Estás seguro de que deseas eliminar la intervención de "${patientName}"?`, onConfirm: async () => {
             await deleteIntervention(interventionId);
