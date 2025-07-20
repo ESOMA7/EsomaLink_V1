@@ -3,7 +3,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { Intervention } from '../types';
 import { supabase } from '../services/supabaseClient';
 
-export const useInterventions = () => {
+interface UseInterventionsProps {
+    onNewIntervention?: () => void;
+}
+
+export const useInterventions = ({ onNewIntervention }: UseInterventionsProps = {}) => {
     const [interventions, setInterventions] = useState<Intervention[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -31,30 +35,54 @@ export const useInterventions = () => {
 
     useEffect(() => {
         fetchInterventions();
-    }, [fetchInterventions]);
+
+        const channel = supabase
+            .channel('interventions-realtime')
+            .on(
+                'postgres_changes',
+                { event: 'INSERT', schema: 'public', table: 'interventions' },
+                (payload) => {
+                    const newIntervention = payload.new as Intervention;
+                    setInterventions(prev => [newIntervention, ...prev]);
+                    if (onNewIntervention) {
+                        onNewIntervention();
+                    }
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [fetchInterventions, onNewIntervention]);
 
     const saveIntervention = useCallback(async (interventionData: Omit<Intervention, 'id' | 'created_at' | 'updated_at'> & { id?: number }) => {
         try {
-            const { id, ...dataToSave } = interventionData;
-
-            if (id) {
-                // Update
+            // If an ID exists, it's an update operation.
+            if (interventionData.id) {
+                const { id, ...dataToUpdate } = interventionData;
                 const { error: updateError } = await supabase
                     .from('interventions')
-                    .update(dataToSave)
+                    .update(dataToUpdate)
                     .eq('id', id);
+
                 if (updateError) throw updateError;
             } else {
-                // Create
+                // If no ID exists, it's a create operation.
+                // We explicitly exclude 'id' from the object to be inserted.
+                const { id, ...dataToInsert } = interventionData;
                 const { error: insertError } = await supabase
                     .from('interventions')
-                    .insert(dataToSave);
+                    .insert(dataToInsert); // Supabase will auto-generate the ID.
+
                 if (insertError) throw insertError;
             }
-            await fetchInterventions(); // Refresh data
+            // After saving, refresh the local data.
+            await fetchInterventions();
         } catch (e) {
             setError('Error al guardar la intervención.');
             console.error('Error saving intervention:', e);
+            // Re-throw the error to be caught by the calling function if needed.
             throw e;
         }
     }, [fetchInterventions]);
@@ -92,5 +120,22 @@ export const useInterventions = () => {
         }
     }, []);
 
-    return { interventions, isLoading, error, saveIntervention, deleteIntervention, updateInterventionStatus };
+    const deleteMultipleInterventions = useCallback(async (interventionIds: number[]) => {
+        try {
+            const { error: deleteError } = await supabase
+                .from('interventions')
+                .delete()
+                .in('id', interventionIds);
+
+            if (deleteError) throw deleteError;
+
+            setInterventions(prev => prev.filter(i => !interventionIds.includes(i.id)));
+        } catch (e) {
+            setError('Error al eliminar las intervenciones.');
+            console.error('Error deleting multiple interventions:', e);
+            throw e;
+        }
+    }, []);
+
+    return { interventions, isLoading, error, saveIntervention, deleteIntervention, deleteMultipleInterventions, updateInterventionStatus, fetchInterventions };
 };

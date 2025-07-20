@@ -28,13 +28,15 @@ export interface Intervention {
 
 export interface Payment {
     id: number;
-    transaction_id: string;
-    patient: string;
+    referencia: string;
+    nombre: string;
     whatsapp: string;
-    para: string; // "Concept"
-    amount: number;
-    bank: string;
-    date: string;
+    concepto: string;
+    valor: number;
+    banco: string;
+    fecha: string;
+    creado_en?: string;
+    id_usuario?: string;
 }
 
 export interface Note {
@@ -44,4 +46,15 @@ export interface Note {
     updatedAt: string; // ISO string format
 }
 
-export type View = 'dashboard' | 'calendar' | 'payments' | 'interventions' | 'drive' | 'notes';
+export type View = 'dashboard' | 'calendar' | 'payments' | 'interventions' | 'drive' | 'notes' | 'waiting_patients';
+
+export interface WaitingPatient {
+  id: number;
+  nombre: string;
+  telefono: string;
+  caso: string;
+  fecha: string;
+  estado: 'Pendiente' | 'En Proceso' | 'Resuelto';
+  id_usuario: string;
+  creado_en: string;
+}

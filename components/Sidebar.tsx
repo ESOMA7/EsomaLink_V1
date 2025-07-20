@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Calendar, LayoutDashboard, DollarSign, AlertTriangle, FolderKanban, Power, Settings, Sun, Moon, Bell, BellOff, BookText } from 'lucide-react';
+import { Calendar, LayoutDashboard, DollarSign, AlertTriangle, FolderKanban, Power, Settings, Sun, Moon, Bell, BellOff, BookText, ClipboardList } from 'lucide-react';
 import { View } from '../types';
 import { APP_LOGO_URL } from '../constants';
 
@@ -12,6 +12,7 @@ interface SidebarProps {
     onToggleTheme: () => void;
     areNotificationsEnabled: boolean;
     onToggleNotifications: () => void;
+    newInterventionAvailable: boolean;
 }
 
 const navItems = [
@@ -20,6 +21,7 @@ const navItems = [
     { id: 'payments' as View, icon: DollarSign, label: 'Pagos' },
     { id: 'interventions' as View, icon: AlertTriangle, label: 'Intervenciones' },
     { id: 'notes' as View, icon: BookText, label: 'Notas' },
+    { id: 'waiting_patients' as View, icon: ClipboardList, label: 'Pacientes en Espera' },
     { id: 'drive' as View, icon: FolderKanban, label: 'Google Drive' },
 ];
 
@@ -36,7 +38,7 @@ const ToggleSwitch = ({ checked, onChange }: { checked: boolean, onChange: () =>
 );
 
 
-export const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, onLogout, isDarkMode, onToggleTheme, areNotificationsEnabled, onToggleNotifications }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, onLogout, isDarkMode, onToggleTheme, areNotificationsEnabled, onToggleNotifications, newInterventionAvailable }) => {
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const settingsRef = useRef<HTMLDivElement>(null);
 
@@ -66,10 +68,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, o
                             <a 
                                 href="#" 
                                 onClick={(e) => { e.preventDefault(); setCurrentView(item.id); }} 
-                                className={`flex items-center p-3 rounded-lg transition-colors duration-200 ${currentView === item.id ? 'bg-orange-100 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400' : 'hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'}`}
+                                className={`relative flex items-center p-3 rounded-lg transition-colors duration-200 ${currentView === item.id ? 'bg-orange-100 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400' : 'hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'}`}
                             >
                                 <item.icon className="h-6 w-6 flex-shrink-0" />
                                 <span className="hidden lg:block ml-4 font-medium">{item.label}</span>
+                                {item.id === 'interventions' && newInterventionAvailable && (
+                                    <span className="absolute top-2 right-2 block h-2.5 w-2.5 rounded-full bg-orange-500 ring-2 ring-white dark:ring-slate-800"></span>
+                                )}
                             </a>
                         </li>
                     ))}

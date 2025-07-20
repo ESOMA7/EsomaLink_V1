@@ -9,6 +9,7 @@ interface InfoCardProps {
     color: 'blue' | 'red' | 'green' | 'orange' | 'yellow';
     onClick?: () => void;
     isSensitive?: boolean;
+    newInterventionAvailable?: boolean;
 }
 
 const colorClasses = {
@@ -44,7 +45,7 @@ const colorClasses = {
     },
 };
 
-const InfoCard: React.FC<InfoCardProps> = ({ icon: Icon, title, value, subtitle, color, onClick, isSensitive = false }) => {
+const InfoCard: React.FC<InfoCardProps> = ({ icon: Icon, title, value, subtitle, color, onClick, isSensitive = false, newInterventionAvailable = false }) => {
     const classes = colorClasses[color];
     const [isVisible, setIsVisible] = useState(!isSensitive);
 
@@ -55,7 +56,7 @@ const InfoCard: React.FC<InfoCardProps> = ({ icon: Icon, title, value, subtitle,
 
     return (
         <div 
-            className={`p-5 rounded-xl shadow-lg flex flex-col justify-between h-44 ${classes.bg} ${classes.text} ${onClick ? 'cursor-pointer' : ''} transition-all duration-300 transform hover:-translate-y-2 ${classes.hover}`}
+            className={`relative p-5 rounded-xl shadow-lg flex flex-col justify-between h-44 ${classes.bg} ${classes.text} ${onClick ? 'cursor-pointer' : ''} transition-all duration-300 transform hover:-translate-y-2 ${classes.hover}`}
             onClick={onClick}
             role={onClick ? 'button' : 'region'}
             aria-label={`${title}: ${value}. ${subtitle}`}
@@ -71,6 +72,12 @@ const InfoCard: React.FC<InfoCardProps> = ({ icon: Icon, title, value, subtitle,
                 <div className="p-3 bg-black bg-opacity-20 rounded-lg">
                     <Icon className="h-6 w-6" />
                 </div>
+                {newInterventionAvailable && (
+                    <span className="absolute top-3 right-3 flex h-3 w-3">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-300 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-3 w-3 bg-orange-400"></span>
+                    </span>
+                )}
                 {isSensitive && (
                     <button 
                         onClick={handleToggleVisibility} 

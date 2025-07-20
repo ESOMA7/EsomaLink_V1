@@ -45,6 +45,9 @@ export const useNotes = () => {
 
   const saveNote = useCallback(async (noteToSave: Note) => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuario no autenticado');
+
       const now = new Date().toISOString();
       
       if (noteToSave.id && noteToSave.id > 0) {
@@ -77,7 +80,8 @@ export const useNotes = () => {
           .insert({
             title: noteToSave.title,
             content: noteToSave.content,
-            updated_at: now
+            updated_at: now,
+            user_id: user.id // Add the user ID here
           })
           .select()
           .single();

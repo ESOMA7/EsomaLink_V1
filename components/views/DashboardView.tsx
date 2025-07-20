@@ -13,9 +13,11 @@ interface DashboardViewProps {
     setCurrentView: (view: View) => void;
     isLoading: boolean;
     error: string | null;
+    newInterventionAvailable: boolean;
+    onTestNewIntervention: () => void;
 }
 
-const DashboardView: React.FC<DashboardViewProps> = ({ interventions, payments, appointments, setCurrentView, isLoading, error }) => {
+const DashboardView: React.FC<DashboardViewProps> = ({ interventions, payments, appointments, setCurrentView, isLoading, error, newInterventionAvailable, onTestNewIntervention }) => {
     // Use a mock date consistent with the demo data to ensure the dashboard reflects the correct state.
     if (isLoading) {
         return <DashboardViewSkeleton />;
@@ -56,7 +58,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ interventions, payments, 
         interventionsSubtitle = "No hay casos urgentes";
     }
     
-    const totalRevenue = payments.reduce((acc, curr) => acc + curr.amount, 0);
+    const totalRevenue = payments.reduce((acc, curr) => acc + curr.valor, 0);
 
     const upcomingAppointments = appointments
         .filter(a => new Date(a.start) >= new Date())
@@ -65,7 +67,15 @@ const DashboardView: React.FC<DashboardViewProps> = ({ interventions, payments, 
 
     return (
         <div>
-            <h2 className="text-3xl font-bold text-slate-800 dark:text-slate-100 mb-8">Centro de Control</h2>
+            <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
+                <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100">Centro de Control</h1>
+                <button 
+                    onClick={onTestNewIntervention}
+                    className="px-4 py-2 text-sm font-semibold text-white bg-teal-500 rounded-lg shadow-md hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transition-all"
+                >
+                    Prueba de Notificación
+                </button>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <InfoCard 
                     icon={Calendar}
@@ -82,6 +92,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ interventions, payments, 
                     subtitle={interventionsSubtitle}
                     color={interventionsColor}
                     onClick={() => setCurrentView('interventions')}
+                    newInterventionAvailable={newInterventionAvailable} // Propagamos la nueva prop
                 />
                 <InfoCard 
                     icon={DollarSign}
