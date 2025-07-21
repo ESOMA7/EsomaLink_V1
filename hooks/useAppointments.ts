@@ -57,14 +57,8 @@ export const useAppointments = () => {
         return { success: true };
     }, []);
     
-    const updateAppointmentDate = useCallback(async (eventId: number, newStartDate: Date) => {
+        const updateAppointmentDate = useCallback(async (eventId: number, newStartDate: Date, newEndDate: Date) => {
         setEvents(prevEvents => {
-            const eventToUpdate = prevEvents.find(e => e.id === eventId);
-            if (!eventToUpdate) return prevEvents;
-
-            const duration = eventToUpdate.end.getTime() - eventToUpdate.start.getTime();
-            const newEndDate = new Date(newStartDate.getTime() + duration);
-            
             return prevEvents.map(e => e.id === eventId ? { ...e, start: newStartDate, end: newEndDate } : e);
         });
     }, []);

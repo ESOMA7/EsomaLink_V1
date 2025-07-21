@@ -8,7 +8,7 @@ interface SidebarProps {
     currentView: View;
     setCurrentView: (view: View) => void;
     onLogout: () => void;
-    isDarkMode: boolean;
+    theme: 'light' | 'dark';
     onToggleTheme: () => void;
     areNotificationsEnabled: boolean;
     onToggleNotifications: () => void;
@@ -38,7 +38,8 @@ const ToggleSwitch = ({ checked, onChange }: { checked: boolean, onChange: () =>
 );
 
 
-export const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, onLogout, isDarkMode, onToggleTheme, areNotificationsEnabled, onToggleNotifications, newInterventionAvailable }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, onLogout, theme, onToggleTheme, areNotificationsEnabled, onToggleNotifications, newInterventionAvailable }) => {
+    const isDarkMode = theme === 'dark';
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const settingsRef = useRef<HTMLDivElement>(null);
 

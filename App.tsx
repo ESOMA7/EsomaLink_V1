@@ -1,365 +1,327 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { AppointmentEvent, Intervention, Payment, View, Note, WaitingPatient } from './types';
-
+import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
+import LoginView from './components/views/LoginView';
 import DashboardView from './components/views/DashboardView';
 import CalendarView from './components/views/CalendarView';
 import PaymentsView from './components/views/PaymentsView';
 import InterventionsView from './components/views/InterventionsView';
-import DriveView from './components/views/DriveView';
 import NotesView from './components/views/NotesView';
 import WaitingPatientsView from './components/views/WaitingPatientsView';
 import ConfirmationModal from './components/ui/ConfirmationModal';
 import AppointmentModal from './components/ui/AppointmentModal';
 import GeminiModal from './components/ui/GeminiModal';
-import InterventionModal from './components/ui/AddInterventionModal';
-import LoginView from './components/views/LoginView';
+import AddInterventionModal from './components/ui/AddInterventionModal';
 import AddPaymentModal from './components/ui/AddPaymentModal';
 import AddWaitingPatientModal from './components/ui/AddWaitingPatientModal';
+import { useAuth, useAppointments, useInterventions, usePayments, useNotes, useWaitingPatients } from './hooks';
+import { AppointmentEvent, Intervention, Payment, WaitingPatient, View } from './types';
 
-import { useAuth } from './hooks/useAuth';
-import { useAppointments } from './hooks/useAppointments';
-import { useInterventions } from './hooks/useInterventions';
-import { usePayments } from './hooks/usePayments';
-import { useNotes } from './hooks/useNotes';
-import { useWaitingPatients } from './hooks/useWaitingPatients';
 import { LoaderCircle } from 'lucide-react';
 
 const App: React.FC = () => {
+    const { isAuthenticated, isAuthLoading, authError, setAuthError, loginWithGoogle, logout } = useAuth();
     const [currentView, setCurrentView] = useState<View>('dashboard');
-
-    // Settings State
-    const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches));
-    const [areNotificationsEnabled, setAreNotificationsEnabled] = useState(() => localStorage.getItem('notifications') !== 'false');
+    const [theme, setTheme] = useState<'light' | 'dark'>(() => (localStorage.getItem('theme') as 'light' | 'dark') || 'light');
+    const [areNotificationsEnabled, setAreNotificationsEnabled] = useState(() => localStorage.getItem('notifications') === 'true');
     const [hasNewIntervention, setHasNewIntervention] = useState(false);
 
+    const { events: appointments, isLoading: loadingAppointments, error: errorAppointments, saveAppointment, deleteAppointment, updateAppointmentDate } = useAppointments();
+    const { interventions, isLoading: loadingInterventions, error: errorInterventions, saveIntervention, deleteIntervention, deleteMultipleInterventions, updateInterventionStatus, fetchInterventions } = useInterventions({ onNewIntervention: () => setHasNewIntervention(true) });
+    const { payments, isLoading: loadingPayments, error: errorPayments, savePayment, deletePayment, fetchPayments } = usePayments();
+    const { notes, isLoading: loadingNotes, error: errorNotes, saveNote, deleteNote } = useNotes();
+    const { waitingPatients, isLoading: loadingWaitingPatients, error: errorWaitingPatients, saveWaitingPatient, updateWaitingPatient, deleteWaitingPatient, fetchWaitingPatients } = useWaitingPatients();
+
+    const [appointmentModalState, setAppointmentModalState] = useState<{ isOpen: boolean; event: AppointmentEvent | null; date: Date | null; }>({ isOpen: false, event: null, date: null });
+    const [interventionModalState, setInterventionModalState] = useState<{ isOpen: boolean; intervention: Intervention | null; }>({ isOpen: false, intervention: null });
+    const [paymentModalState, setPaymentModalState] = useState<{ isOpen: boolean; payment: Payment | null; }>({ isOpen: false, payment: null });
+    const [waitingPatientModalState, setWaitingPatientModalState] = useState<{ isOpen: boolean; patient: WaitingPatient | null; }>({ isOpen: false, patient: null });
+    const [geminiModalState, setGeminiModalState] = useState<{ isOpen: boolean, intervention: Intervention | null }>({ isOpen: false, intervention: null });
+    const [selectedInterventionIds, setSelectedInterventionIds] = useState<number[]>([]);
+
+    const [confirmationModalState, setConfirmationModalState] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: (() => void) | null }>({ isOpen: false, title: '', message: '', onConfirm: null });
+
     useEffect(() => {
-        document.documentElement.classList.toggle('dark', isDarkMode);
-        localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
-    }, [isDarkMode]);
+        const root = window.document.documentElement;
+        root.classList.remove(theme === 'light' ? 'dark' : 'light');
+        root.classList.add(theme);
+        localStorage.setItem('theme', theme);
+    }, [theme]);
 
     useEffect(() => {
         localStorage.setItem('notifications', String(areNotificationsEnabled));
     }, [areNotificationsEnabled]);
 
-    // Custom Hooks for state management
-    const { isAuthenticated, loginWithGoogle, logout, isAuthLoading, authError, setAuthError } = useAuth();
-    const { events, saveAppointment, deleteAppointment, updateAppointmentDate, isLoading: appointmentsLoading, error: appointmentsError } = useAppointments();
-
-    const playNotification = useCallback(() => {
+    const handleSaveAppointment = async (data: Omit<AppointmentEvent, 'title' | 'id'> & { id?: number }) => {
+        await saveAppointment(data);
+        setAppointmentModalState({ isOpen: false, event: null, date: null });
         if (areNotificationsEnabled) {
-            const audio = new Audio('/notification.mp3'); // Use the correct path directly
-            const playPromise = audio.play();
-
-            if (playPromise !== undefined) {
-                playPromise.catch(error => {
-                    // Log error if playback fails for any reason (e.g., browser policy)
-                    console.error('Error al reproducir el sonido de notificación:', error);
-                });
-            }
+            toast.success('Cita guardada con éxito.');
         }
-    }, [areNotificationsEnabled]);
-
-    const handleNewIntervention = useCallback(() => {
-        // This now only handles the visual notification part.
-        // The sound is played directly on the action that triggers the new intervention.
-        if (areNotificationsEnabled) {
-            setHasNewIntervention(true);
-        }
-    }, [areNotificationsEnabled]);
-
-    const { interventions, saveIntervention, deleteIntervention, deleteMultipleInterventions, updateInterventionStatus, isLoading: interventionsLoading, error: interventionsError } = useInterventions({ onNewIntervention: handleNewIntervention });
-    const { payments, savePayment, deletePayment, updatePayment, fetchPayments, isLoading: paymentsLoading, error: paymentsError } = usePayments();
-    const { notes, saveNote: doSaveNote, deleteNote: doDeleteNote, isLoading: notesLoading, error: notesError } = useNotes();
-    const { waitingPatients, saveWaitingPatient, updateWaitingPatient, deleteWaitingPatient, fetchWaitingPatients, isLoading: waitingPatientsLoading, error: waitingPatientsError } = useWaitingPatients();
-
-    const handleTestNewIntervention = useCallback(async () => {
-        const randomSuffix = Math.floor(100000 + Math.random() * 900000);
-        const testIntervention = {
-            nombre: `Paciente de Prueba ${randomSuffix}`,
-            numeros: `300${randomSuffix}`,
-            fecha: new Date().toISOString().split('T')[0],
-            caso: 'Caso de prueba para notificaciones en tiempo real.',
-            estado: 'Pendiente' as const,
-        };
-        try {
-            await saveIntervention(testIntervention);
-            playNotification();
-        } catch (error) {
-            console.error("Failed to save test intervention", error);
-        }
-    }, [saveIntervention, playNotification]);
-
-    const handleUpdateWaitingPatientStatus = useCallback(async (id: number, estado: WaitingPatient['estado']) => {
-        const patientToUpdate = waitingPatients.find(p => p.id === id);
-        if (patientToUpdate) {
-            await updateWaitingPatient({ ...patientToUpdate, estado });
-        }
-    }, [waitingPatients, updateWaitingPatient]);
-
-    // Modal States
-    const [confirmationModal, setConfirmationModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: (() => void) | null }>({ isOpen: false, title: '', message: '', onConfirm: null });
-    const [appointmentModal, setAppointmentModal] = useState<{ isOpen: boolean; event: AppointmentEvent | null; date: Date | null; }>({ isOpen: false, event: null, date: null });
-    const [geminiModal, setGeminiModal] = useState<{ isOpen: boolean; intervention: Intervention | null }>({ isOpen: false, intervention: null });
-    const [selectedInterventionIds, setSelectedInterventionIds] = useState<number[]>([]);
-    const [interventionModal, setInterventionModal] = useState<{ isOpen: boolean; intervention: Intervention | null; }>({ isOpen: false, intervention: null });
-    const [paymentModal, setPaymentModal] = useState<{ isOpen: boolean; payment: Payment | null; }>({ isOpen: false, payment: null });
-    const [waitingPatientModal, setWaitingPatientModal] = useState<{ isOpen: boolean; patient: WaitingPatient | null; }>({ isOpen: false, patient: null });
-
-    const handleSetCurrentView = (view: View) => {
-        if (view === 'interventions') {
-            setHasNewIntervention(false);
-        }
-        setCurrentView(view);
     };
 
-    const handleLogout = useCallback(() => {
-        setConfirmationModal({
+    const handleDeleteAppointment = (id: number, title: string) => {
+        setConfirmationModalState({
             isOpen: true,
-            title: 'Cerrar Sesión',
-            message: '¿Estás seguro de que quieres cerrar sesión?',
-            onConfirm: () => {
-                logout();
-                setConfirmationModal({ isOpen: false, title: '', message: '', onConfirm: null });
-            }
-        });
-    }, [logout]);
-
-    const handleSaveAppointment = useCallback(async (data: Omit<AppointmentEvent, 'title' | 'id'> & {id?:number}) => {
-        await saveAppointment(data);
-        setAppointmentModal({ isOpen: false, event: null, date: null });
-    }, [saveAppointment]);
-
-    const handleDeleteAppointment = useCallback((eventId: number, eventTitle: string) => {
-        setConfirmationModal({
-            isOpen: true,
-            title: 'Confirmar Eliminación de Cita',
-            message: `¿Estás seguro de que quieres eliminar la cita "${eventTitle}"?`,
+            title: `Eliminar Cita: ${title}`,
+            message: '¿Estás seguro de que deseas eliminar esta cita? Esta acción no se puede deshacer.',
             onConfirm: async () => {
-                await deleteAppointment(eventId);
-                setConfirmationModal({ isOpen: false, title: '', message: '', onConfirm: null });
+                try {
+                    await deleteAppointment(id);
+                    if (areNotificationsEnabled) toast.success('Cita eliminada con éxito.');
+                } catch (error) {
+                    if (areNotificationsEnabled) toast.error('Error al eliminar la cita.');
+                }
+                setConfirmationModalState({ isOpen: false, title: '', message: '', onConfirm: null });
             }
         });
-    }, [deleteAppointment]);
+    };
 
-    const handleEditPayment = useCallback((payment: Payment) => {
-        setPaymentModal({ isOpen: true, payment });
-    }, []);
-
-    const handleSaveWaitingPatient = useCallback(async (patientData: Omit<WaitingPatient, 'id' | 'fecha' | 'creado_en' | 'id_usuario'>) => {
-        await saveWaitingPatient(patientData);
-        playNotification();
-        setWaitingPatientModal({ isOpen: false, patient: null });
-    }, [saveWaitingPatient, playNotification]);
-
-    const handleDeleteWaitingPatient = useCallback((id: number, nombre: string) => {
-        setConfirmationModal({
-            isOpen: true,
-            title: 'Confirmar Eliminación de Paciente',
-            message: `¿Estás seguro de que quieres eliminar al paciente "${nombre}"?`,
-            onConfirm: async () => {
-                await deleteWaitingPatient(id);
-                playNotification();
-                setConfirmationModal({ isOpen: false, title: '', message: '', onConfirm: null });
-            }
-        });
-    }, [deleteWaitingPatient, playNotification]);
-
-    const handleSavePayment = useCallback(async (paymentData: Omit<Payment, 'id' | 'created_at' | 'user_id' | 'fecha' | 'referencia'>) => {
-        if (paymentModal.payment) {
-            // Ensure you pass the full payment object as expected by the hook
-            const updatedPayment = { ...paymentModal.payment, ...paymentData };
-            await updatePayment(updatedPayment);
-        } else {
-            await savePayment(paymentData);
-        }
-        playNotification();
-        setPaymentModal({ isOpen: false, payment: null });
-    }, [savePayment, playNotification, paymentModal, updatePayment]);
-
-    const handleDeletePayment = useCallback((id: number, nombre: string) => {
-        setConfirmationModal({
-            isOpen: true,
-            title: 'Confirmar Eliminación de Pago',
-            message: `¿Estás seguro de que quieres eliminar el pago de "${nombre}"?`,
-            onConfirm: async () => {
-                await deletePayment(id);
-                setConfirmationModal({ isOpen: false, title: '', message: '', onConfirm: null });
-            }
-        });
-    }, [deletePayment]);
-
-    const handleSaveIntervention = useCallback(async (data: Omit<Intervention, 'id' | 'created_at' | 'updated_at'> & { id?: number }) => {
+    const handleSaveIntervention = async (data: any) => {
         await saveIntervention(data);
-        // The notification sound is played here to link it to the user action.
-        playNotification();
-        setInterventionModal({ isOpen: false, intervention: null });
-    }, [saveIntervention, playNotification]);
+        setInterventionModalState({ isOpen: false, intervention: null });
+    };
 
-    const handleDeleteIntervention = useCallback((id: number, nombre: string) => {
-        setConfirmationModal({
+    const handleDeleteIntervention = (id: number, nombre: string) => {
+        setConfirmationModalState({
             isOpen: true,
-            title: 'Confirmar Eliminación de Intervención',
-            message: `¿Estás seguro de que quieres eliminar la intervención de "${nombre}"?`,
+            title: `Eliminar Intervención: ${nombre}`,
+            message: '¿Estás seguro de que deseas eliminar esta intervención? Esta acción no se puede deshacer.',
             onConfirm: async () => {
-                await deleteIntervention(id);
-                setConfirmationModal({ isOpen: false, title: '', message: '', onConfirm: null });
+                try {
+                    await deleteIntervention(id);
+                    if (areNotificationsEnabled) toast.success('Intervención eliminada con éxito.');
+                } catch (error) {
+                    if (areNotificationsEnabled) toast.error('Error al eliminar la intervención.');
+                }
+                setConfirmationModalState({ isOpen: false, title: '', message: '', onConfirm: null });
             }
         });
-    }, [deleteIntervention]);
-
-    const handleSaveNote = useCallback(async (note: Note) => {
-        await doSaveNote(note);
-    }, [doSaveNote]);
-
-    const handleDeleteNote = useCallback((noteId: number, noteTitle: string) => {
-        setConfirmationModal({
-            isOpen: true,
-            title: 'Confirmar Eliminación de Nota',
-            message: `¿Estás seguro de que quieres eliminar la nota "${noteTitle}"?`,
-            onConfirm: async () => {
-                await doDeleteNote(noteId);
-                setConfirmationModal({ isOpen: false, title: '', message: '', onConfirm: null });
-            }
-        });
-    }, [doDeleteNote]);
-
-    const handleEventClick = useCallback((event: AppointmentEvent) => {
-        setAppointmentModal({ isOpen: true, event, date: null });
-    }, []);
-
-    const handleDateClick = useCallback((date: Date) => {
-        setAppointmentModal({ isOpen: true, event: null, date });
-    }, []);
-
-    const handleEventDrop = useCallback(async (eventId: number, newDate: Date) => {
-        await updateAppointmentDate(eventId, newDate);
-    }, [updateAppointmentDate]);
+    };
 
     const handleDeleteSelectedInterventions = () => {
-        if (selectedInterventionIds.length === 0) return;
-
-        setConfirmationModal({
+        setConfirmationModalState({
             isOpen: true,
-            title: 'Confirmar Eliminación Múltiple',
-            message: `¿Estás seguro de que quieres eliminar ${selectedInterventionIds.length} intervenciones seleccionadas? Esta acción no se puede deshacer.`,
+            title: 'Eliminar Intervenciones Seleccionadas',
+            message: `¿Estás seguro de que deseas eliminar ${selectedInterventionIds.length} intervenciones? Esta acción no se puede deshacer.`,
             onConfirm: async () => {
                 try {
                     await deleteMultipleInterventions(selectedInterventionIds);
-                    setSelectedInterventionIds([]); // Clear selection after deletion
+                    if (areNotificationsEnabled) toast.success('Intervenciones eliminadas con éxito.');
+                    setSelectedInterventionIds([]);
                 } catch (error) {
-                    console.error('Failed to delete selected interventions:', error);
-                    // Optionally, show an error message to the user
+                    if (areNotificationsEnabled) toast.error('Error al eliminar las intervenciones.');
                 }
-                setConfirmationModal({ isOpen: false, title: '', message: '', onConfirm: null });
+                setConfirmationModalState({ isOpen: false, title: '', message: '', onConfirm: null });
             }
         });
     };
 
-    const handleGenerateResponse = useCallback((intervention: Intervention) => {
-        setGeminiModal({ isOpen: true, intervention });
-    }, []);
+    const handleSavePayment = async (data: any) => {
+        await savePayment(data);
+        setPaymentModalState({ isOpen: false, payment: null });
+    };
 
+    const handleDeletePayment = (id: number, nombre: string) => {
+        setConfirmationModalState({
+            isOpen: true,
+            title: `Eliminar Pago: ${nombre}`,
+            message: '¿Estás seguro de que deseas eliminar este pago? Esta acción no se puede deshacer.',
+            onConfirm: async () => {
+                try {
+                    await deletePayment(id);
+                    if (areNotificationsEnabled) toast.success('Pago eliminado con éxito.');
+                } catch (error) {
+                    if (areNotificationsEnabled) toast.error('Error al eliminar el pago.');
+                }
+                setConfirmationModalState({ isOpen: false, title: '', message: '', onConfirm: null });
+            }
+        });
+    };
 
+    const handleDeleteNote = (id: number, title: string) => {
+        setConfirmationModalState({
+            isOpen: true,
+            title: `Eliminar Nota: ${title}`,
+            message: '¿Estás seguro de que deseas eliminar esta nota? Esta acción no se puede deshacer.',
+            onConfirm: async () => {
+                try {
+                    await deleteNote(id);
+                    if (areNotificationsEnabled) toast.success('Nota eliminada con éxito.');
+                } catch (error) {
+                    if (areNotificationsEnabled) toast.error('Error al eliminar la nota.');
+                }
+                setConfirmationModalState({ isOpen: false, title: '', message: '', onConfirm: null });
+            }
+        });
+    };
+
+    const handleSaveWaitingPatient = async (data: any) => {
+        await saveWaitingPatient(data);
+        setWaitingPatientModalState({ isOpen: false, patient: null });
+    };
+
+    const handleDeleteWaitingPatient = (id: number, nombre: string) => {
+        setConfirmationModalState({
+            isOpen: true,
+            title: `Eliminar Paciente en Espera: ${nombre}`,
+            message: '¿Estás seguro de que deseas eliminar este paciente de la lista de espera? Esta acción no se puede deshacer.',
+            onConfirm: async () => {
+                try {
+                    await deleteWaitingPatient(id);
+                    if (areNotificationsEnabled) toast.success('Paciente en espera eliminado con éxito.');
+                } catch (error) {
+                    if (areNotificationsEnabled) toast.error('Error al eliminar el paciente en espera.');
+                }
+                setConfirmationModalState({ isOpen: false, title: '', message: '', onConfirm: null });
+            }
+        });
+    };
+
+    const handleSlotClick = (date: Date) => {
+        setAppointmentModalState({ isOpen: true, event: null, date });
+    };
+
+    const handleEventClick = (event: any) => {
+        setAppointmentModalState({ isOpen: true, event, date: event.start });
+    };
+
+    const handleTestNewIntervention = () => {
+        toast.info('Esta es una notificación de prueba para una nueva intervención.', {
+            action: {
+                label: 'Ver',
+                onClick: () => setCurrentView('interventions'),
+            },
+        });
+    };
 
     const renderView = () => {
         switch (currentView) {
             case 'dashboard':
-                return <DashboardView interventions={interventions} payments={payments} appointments={events} setCurrentView={handleSetCurrentView} isLoading={false} error={null} newInterventionAvailable={hasNewIntervention} onTestNewIntervention={handleTestNewIntervention} />;
+                return (
+                    <DashboardView
+                        setCurrentView={setCurrentView}
+                        interventions={interventions}
+                        payments={payments}
+                        appointments={appointments}
+                        isLoading={loadingAppointments || loadingInterventions || loadingPayments}
+                        error={errorAppointments || errorInterventions || errorPayments}
+                        newInterventionAvailable={hasNewIntervention}
+                        onTestNewIntervention={handleTestNewIntervention}
+                    />
+                );
             case 'calendar':
-                return <CalendarView events={events} onEventClick={handleEventClick} onSlotClick={handleDateClick} onUpdateAppointmentDate={handleEventDrop} isLoading={appointmentsLoading} error={appointmentsError} />;
-            case 'payments':
-                return <PaymentsView 
-                            payments={payments} 
-                            onEdit={handleEditPayment} 
-                            onDelete={handleDeletePayment} 
-                            onAdd={() => setPaymentModal({ isOpen: true, payment: null })} 
-                            fetchPayments={fetchPayments}
-                            isLoading={paymentsLoading} 
-                            error={paymentsError} 
-                        />;
+                return (
+                    <CalendarView
+                        events={appointments}
+                        onSlotClick={handleSlotClick}
+                        onEventClick={handleEventClick}
+                        onUpdateAppointmentDate={updateAppointmentDate}
+                        isLoading={loadingAppointments}
+                        error={errorAppointments}
+                    />
+                );
             case 'interventions':
-                return <InterventionsView 
-                            interventions={interventions} 
-                            onUpdateStatus={updateInterventionStatus}
-                            onDelete={handleDeleteIntervention} 
-                            onGenerateResponse={handleGenerateResponse}
-                            onAdd={() => setInterventionModal({ isOpen: true, intervention: null })} 
-                            onEdit={(intervention: Intervention) => setInterventionModal({ isOpen: true, intervention })} 
-                            isLoading={interventionsLoading} 
-                            error={interventionsError}
-                            selectedIds={selectedInterventionIds}
-                            onSelectionChange={setSelectedInterventionIds}
-                            onDeleteSelected={handleDeleteSelectedInterventions}
-                        />;
-            case 'drive':
-                return <DriveView />;
+                return (
+                    <InterventionsView
+                        interventions={interventions}
+                        onUpdateStatus={updateInterventionStatus}
+                        onDelete={handleDeleteIntervention}
+                        onGenerateResponse={(intervention) => setGeminiModalState({ isOpen: true, intervention })}
+                        onAdd={() => setInterventionModalState({ isOpen: true, intervention: null })}
+                        onEdit={(intervention) => setInterventionModalState({ isOpen: true, intervention })}
+                        isLoading={loadingInterventions}
+                        error={errorInterventions}
+                        selectedIds={selectedInterventionIds}
+                        onSelectionChange={setSelectedInterventionIds}
+                        onDeleteSelected={handleDeleteSelectedInterventions}
+                        fetchInterventions={fetchInterventions}
+                    />
+                );
+            case 'payments':
+                return (
+                    <PaymentsView
+                        payments={payments}
+                        onDelete={handleDeletePayment}
+                        onAdd={() => setPaymentModalState({ isOpen: true, payment: null })}
+                        onEdit={(payment) => setPaymentModalState({ isOpen: true, payment })}
+                        isLoading={loadingPayments}
+                        error={errorPayments}
+                        fetchPayments={fetchPayments}
+                    />
+                );
             case 'notes':
-                return <NotesView 
-                            notes={notes}
-                            onSaveNote={handleSaveNote}
-                            onDeleteNote={handleDeleteNote}
-                            isLoading={notesLoading}
-                            error={notesError}
-                        />;
+                return (
+                    <NotesView
+                        notes={notes}
+                        onSaveNote={saveNote}
+                        onDeleteNote={handleDeleteNote}
+                        isLoading={loadingNotes}
+                        error={errorNotes}
+                    />
+                );
             case 'waiting_patients':
-                return <WaitingPatientsView 
-                            patients={waitingPatients}
-                            onDelete={handleDeleteWaitingPatient}
-                            onEdit={(patient) => setWaitingPatientModal({ isOpen: true, patient })}
-                            onAdd={() => setWaitingPatientModal({ isOpen: true, patient: null })}
-                            onUpdateStatus={handleUpdateWaitingPatientStatus}
-                            isLoading={waitingPatientsLoading}
-                            error={waitingPatientsError}
-                            fetchWaitingPatients={fetchWaitingPatients}
-                        />;
+                return (
+                    <WaitingPatientsView
+                        patients={waitingPatients}
+                        onDelete={handleDeleteWaitingPatient}
+                        onUpdateStatus={updateWaitingPatient}
+                        onAdd={() => setWaitingPatientModalState({ isOpen: true, patient: null })}
+                        onEdit={(patient) => setWaitingPatientModalState({ isOpen: true, patient })}
+                        isLoading={loadingWaitingPatients}
+                        error={errorWaitingPatients}
+                        fetchWaitingPatients={fetchWaitingPatients}
+                    />
+                );
+            case 'settings':
+                return <div>Settings View</div>;
             default:
-                return <DashboardView interventions={interventions} payments={payments} appointments={events} setCurrentView={handleSetCurrentView} isLoading={false} error={null} newInterventionAvailable={hasNewIntervention} onTestNewIntervention={handleTestNewIntervention} />;
+                return (
+                    <DashboardView
+                        setCurrentView={setCurrentView}
+                        interventions={interventions}
+                        payments={payments}
+                        appointments={appointments}
+                        isLoading={loadingAppointments || loadingInterventions || loadingPayments}
+                        error={errorAppointments || errorInterventions || errorPayments}
+                        newInterventionAvailable={hasNewIntervention}
+                        onTestNewIntervention={handleTestNewIntervention}
+                    />
+                );
         }
     };
 
     if (isAuthLoading) {
-        return (
-            <div className="flex h-screen w-full items-center justify-center bg-slate-100 dark:bg-slate-900">
-                <LoaderCircle className="h-12 w-12 animate-spin text-orange-500" />
-            </div>
-        );
+        return <div className="flex items-center justify-center h-screen bg-slate-50 dark:bg-slate-900"><LoaderCircle className="w-12 h-12 animate-spin text-blue-600" /></div>;
     }
-    
+
     if (!isAuthenticated) {
-        return <LoginView onLoginWithGoogle={loginWithGoogle} isLoading={false} error={authError} setError={setAuthError} />;
+        return <LoginView onLoginWithGoogle={loginWithGoogle} isLoading={isAuthLoading} error={authError} setError={setAuthError} />;
     }
 
     return (
-        <div className="flex h-screen font-sans text-slate-800 dark:text-slate-200">
-            <Sidebar 
-                currentView={currentView} 
-                setCurrentView={handleSetCurrentView} 
-                onLogout={handleLogout}
-                newInterventionAvailable={hasNewIntervention}
-                isDarkMode={isDarkMode}
-                onToggleTheme={() => setIsDarkMode(prev => !prev)}
+        <div className={`flex h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-50 ${theme}`}>
+            <Toaster richColors position="top-right" />
+            <Sidebar
+                currentView={currentView}
+                setCurrentView={setCurrentView}
+                onLogout={logout}
+                theme={theme}
+                onToggleTheme={() => setTheme(theme === 'light' ? 'dark' : 'light')}
                 areNotificationsEnabled={areNotificationsEnabled}
-                onToggleNotifications={() => setAreNotificationsEnabled(prev => !prev)}
+                onToggleNotifications={() => setAreNotificationsEnabled(!areNotificationsEnabled)}
+                newInterventionAvailable={hasNewIntervention}
             />
-            <main className="flex-1 p-4 sm:p-6 lg:p-8 flex flex-col overflow-y-auto">
+            <main className="flex-1 p-6 overflow-auto">
                 {renderView()}
             </main>
-            
-            <ConfirmationModal modalState={confirmationModal} setModalState={setConfirmationModal} />
-            <AppointmentModal modalState={appointmentModal} onClose={() => setAppointmentModal({ isOpen: false, event: null, date: null })} onSave={handleSaveAppointment} onDelete={handleDeleteAppointment} />
-            <GeminiModal modalState={geminiModal} onClose={() => setGeminiModal({ isOpen: false, intervention: null })} />
-            <InterventionModal modalState={interventionModal} onClose={() => setInterventionModal({ isOpen: false, intervention: null })} onSave={handleSaveIntervention} />
-            <AddPaymentModal 
-                modalState={paymentModal} 
-                onClose={() => setPaymentModal({ isOpen: false, payment: null })} 
-                onSave={handleSavePayment} 
-            />
-            <AddWaitingPatientModal 
-                modalState={waitingPatientModal}
-                onClose={() => setWaitingPatientModal({ isOpen: false, patient: null })}
-                onSave={handleSaveWaitingPatient}
-            />
+
+            {/* Modals */}
+            <ConfirmationModal modalState={confirmationModalState} setModalState={setConfirmationModalState} />
+            <AppointmentModal modalState={appointmentModalState} onClose={() => setAppointmentModalState({ isOpen: false, event: null, date: null })} onSave={handleSaveAppointment} onDelete={handleDeleteAppointment} />
+            <AddInterventionModal modalState={interventionModalState} onClose={() => setInterventionModalState({ isOpen: false, intervention: null })} onSave={handleSaveIntervention} />
+            <AddPaymentModal modalState={paymentModalState} onClose={() => setPaymentModalState({ isOpen: false, payment: null })} onSave={handleSavePayment} />
+            <AddWaitingPatientModal modalState={waitingPatientModalState} onClose={() => setWaitingPatientModalState({ isOpen: false, patient: null })} onSave={handleSaveWaitingPatient} />
+            <GeminiModal modalState={geminiModalState} onClose={() => setGeminiModalState({ isOpen: false, intervention: null })} />
         </div>
     );
 };

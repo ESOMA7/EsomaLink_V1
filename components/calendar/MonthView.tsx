@@ -9,7 +9,7 @@ interface MonthViewProps {
     events: AppointmentEvent[];
     onDayClick: (date: Date) => void;
     onEventClick: (event: AppointmentEvent) => void;
-    onUpdateAppointmentDate: (eventId: number, newStartDate: Date) => void;
+    onUpdateAppointmentDate: (eventId: string | number, newStartDate: Date, newEndDate: Date) => void;
 }
 
 interface PopoverState {
@@ -57,15 +57,20 @@ const MonthView: React.FC<MonthViewProps> = ({ currentDate, events, onDayClick, 
     const weekDays = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
     const MOCK_TODAY = new Date(2025, 6, 2);
 
-    const handleDrop = (e: React.DragEvent, dropDate: Date) => {
+        const handleDrop = (e: React.DragEvent, dropDate: Date) => {
         e.preventDefault();
-        const eventId = parseInt(e.dataTransfer.getData('text/plain'), 10);
-        const eventToMove = events.find(ev => ev.id === eventId);
+        const eventId = e.dataTransfer.getData('text/plain');
+        const eventToMove = events.find(ev => String(ev.id) === eventId);
         
         if (eventToMove) {
+            const duration = eventToMove.end.getTime() - eventToMove.start.getTime();
+            
             const newStartDate = new Date(dropDate);
             newStartDate.setHours(eventToMove.start.getHours(), eventToMove.start.getMinutes(), eventToMove.start.getSeconds(), eventToMove.start.getMilliseconds());
-            onUpdateAppointmentDate(eventId, newStartDate);
+            
+            const newEndDate = new Date(newStartDate.getTime() + duration);
+
+            onUpdateAppointmentDate(eventToMove.id, newStartDate, newEndDate);
         }
         setDraggedEvent(null);
         setDropTargetDay(null);
@@ -143,7 +148,7 @@ const MonthView: React.FC<MonthViewProps> = ({ currentDate, events, onDayClick, 
                                     <div 
                                         key={event.id} 
                                         draggable
-                                        onDragStart={(e) => { e.stopPropagation(); e.dataTransfer.setData('text/plain', event.id.toString()); setDraggedEvent(event); }}
+                                        onDragStart={(e) => { e.stopPropagation(); e.dataTransfer.setData('text/plain', String(event.id)); setDraggedEvent(event); }}
                                         onDragEnd={(e) => { e.stopPropagation(); setDraggedEvent(null); setDropTargetDay(null); }}
                                         onClick={(e) => { e.stopPropagation(); onEventClick(event); }} 
                                         className={`p-1 rounded text-white text-[10px] leading-tight cursor-grab ${getEventColor(event.professional)} ${draggedEvent?.id === event.id ? 'opacity-50' : ''}`}

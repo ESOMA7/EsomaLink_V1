@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Intervention } from '../../types';
-import { MessageSquare, Trash2, Sparkles, Filter, Users, PlusCircle } from 'lucide-react';
+import { MessageSquare, Trash2, Sparkles, Filter, Users, PlusCircle, RefreshCw } from 'lucide-react';
 import { TableViewSkeleton } from '../ui/LoadingSkeletons';
 import { ErrorMessage } from '../ui/ErrorMessage';
 
@@ -16,6 +16,7 @@ interface InterventionsViewProps {
     selectedIds: number[];
     onSelectionChange: (ids: number[]) => void;
     onDeleteSelected: () => void;
+    fetchInterventions: () => void;
 }
 
 const statusColors: Record<Intervention['estado'], string> = {
@@ -24,7 +25,7 @@ const statusColors: Record<Intervention['estado'], string> = {
     'Pendiente': 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-300',
 };
 
-const InterventionsView: React.FC<InterventionsViewProps> = ({ interventions, onUpdateStatus, onDelete, onGenerateResponse, onAdd, onEdit, isLoading, error, selectedIds, onSelectionChange, onDeleteSelected }) => {
+const InterventionsView: React.FC<InterventionsViewProps> = ({ interventions, onUpdateStatus, onDelete, onGenerateResponse, onAdd, onEdit, isLoading, error, selectedIds, onSelectionChange, onDeleteSelected, fetchInterventions }) => {
     const [filter, setFilter] = useState<Intervention['estado'] | 'Todos'>('Todos');
     const checkboxRef = useRef<HTMLInputElement>(null);
 
@@ -77,6 +78,14 @@ const InterventionsView: React.FC<InterventionsViewProps> = ({ interventions, on
                             <option value="Resuelto">Resuelto</option>
                         </select>
                     </div>
+                    <button 
+                        onClick={fetchInterventions}
+                        className="flex items-center bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50"
+                        disabled={isLoading}
+                    >
+                        <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                        Actualizar
+                    </button>
                     {selectedIds.length > 0 && (
                         <button 
                             onClick={onDeleteSelected}

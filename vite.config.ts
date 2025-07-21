@@ -13,6 +13,7 @@ export default defineConfig(({ mode }) => {
       resolve: {
         alias: {
           '@': path.resolve(__dirname, '.'),
+          './hooks': path.resolve(__dirname, 'hooks'),
         }
       }
     };

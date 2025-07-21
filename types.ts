@@ -6,13 +6,16 @@ export interface User {
 }
 
 export interface AppointmentEvent {
-    id: number;
+    id: string | number; // Support both local (number) and Google (string) IDs
     title: string;
     start: Date;
     end: Date;
-    professional: string;
+    professional: 'José' | 'Loreta' | 'Malka';
     patient: string;
     procedure: string;
+    whatsapp: string;
+    estado: 'pending' | 'confirmed' | 'cancelled' | 'completed';
+    duration?: number; // Optional duration in minutes
 }
 
 export interface Intervention {
@@ -46,7 +49,7 @@ export interface Note {
     updatedAt: string; // ISO string format
 }
 
-export type View = 'dashboard' | 'calendar' | 'payments' | 'interventions' | 'drive' | 'notes' | 'waiting_patients';
+export type View = 'dashboard' | 'calendar' | 'payments' | 'interventions' | 'drive' | 'notes' | 'waiting_patients' | 'settings';
 
 export interface WaitingPatient {
   id: number;
