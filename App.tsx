@@ -13,9 +13,9 @@ import GeminiModal from './components/ui/GeminiModal';
 import AddInterventionModal from './components/ui/AddInterventionModal';
 import AddPaymentModal from './components/ui/AddPaymentModal';
 import AddWaitingPatientModal from './components/ui/AddWaitingPatientModal';
-import { useAuth, useAppointments, useInterventions, usePayments, useNotes, useWaitingPatients } from './hooks';
+import { useAuth, useAppointments, useInterventions, usePayments, useNotes, useWaitingPatients } from '@/hooks';
 import { AppointmentEvent, Intervention, Payment, WaitingPatient, View } from './types';
-
+import { Toaster, toast } from 'react-hot-toast';
 import { LoaderCircle } from 'lucide-react';
 
 const App: React.FC = () => {
