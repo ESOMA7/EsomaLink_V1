@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Sidebar } from './components/Sidebar';
 import LoginView from './components/views/LoginView';
 import DashboardView from './components/views/DashboardView';
@@ -9,7 +9,7 @@ import NotesView from './components/views/NotesView';
 import WaitingPatientsView from './components/views/WaitingPatientsView';
 import ConfirmationModal from './components/ui/ConfirmationModal';
 import AppointmentModal from './components/ui/AppointmentModal';
-import GeminiModal from './components/ui/GeminiModal';
+// import GeminiModal from './components/ui/GeminiModal';
 import AddInterventionModal from './components/ui/AddInterventionModal';
 import AddPaymentModal from './components/ui/AddPaymentModal';
 import AddWaitingPatientModal from './components/ui/AddWaitingPatientModal';
@@ -26,7 +26,11 @@ const App: React.FC = () => {
     const [hasNewIntervention, setHasNewIntervention] = useState(false);
 
     const { events: appointments, isLoading: loadingAppointments, error: errorAppointments, saveAppointment, deleteAppointment, updateAppointmentDate } = useAppointments();
-    const { interventions, isLoading: loadingInterventions, error: errorInterventions, saveIntervention, deleteIntervention, deleteMultipleInterventions, updateInterventionStatus, fetchInterventions } = useInterventions({ onNewIntervention: () => setHasNewIntervention(true) });
+        const onNewIntervention = useCallback(() => {
+        setHasNewIntervention(true);
+    }, []);
+
+    const { interventions, isLoading: loadingInterventions, error: errorInterventions, saveIntervention, deleteIntervention, deleteMultipleInterventions, updateInterventionStatus, fetchInterventions } = useInterventions({ onNewIntervention });
     const { payments, isLoading: loadingPayments, error: errorPayments, savePayment, deletePayment, fetchPayments } = usePayments();
     const { notes, isLoading: loadingNotes, error: errorNotes, saveNote, deleteNote } = useNotes();
     const { waitingPatients, isLoading: loadingWaitingPatients, error: errorWaitingPatients, saveWaitingPatient, updateWaitingPatient, deleteWaitingPatient, fetchWaitingPatients } = useWaitingPatients();
@@ -35,7 +39,7 @@ const App: React.FC = () => {
     const [interventionModalState, setInterventionModalState] = useState<{ isOpen: boolean; intervention: Intervention | null; }>({ isOpen: false, intervention: null });
     const [paymentModalState, setPaymentModalState] = useState<{ isOpen: boolean; payment: Payment | null; }>({ isOpen: false, payment: null });
     const [waitingPatientModalState, setWaitingPatientModalState] = useState<{ isOpen: boolean; patient: WaitingPatient | null; }>({ isOpen: false, patient: null });
-    const [geminiModalState, setGeminiModalState] = useState<{ isOpen: boolean, intervention: Intervention | null }>({ isOpen: false, intervention: null });
+    // const [geminiModalState, setGeminiModalState] = useState<{ isOpen: boolean, intervention: Intervention | null }>({ isOpen: false, intervention: null });
     const [selectedInterventionIds, setSelectedInterventionIds] = useState<number[]>([]);
 
     const [confirmationModalState, setConfirmationModalState] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: (() => void) | null }>({ isOpen: false, title: '', message: '', onConfirm: null });
@@ -185,13 +189,25 @@ const App: React.FC = () => {
         setAppointmentModalState({ isOpen: true, event, date: event.start });
     };
 
+        const handleGenerateResponse = (_intervention: Intervention) => {
+        toast('La generación de respuestas con IA está deshabilitada temporalmente.');
+    };
+
     const handleTestNewIntervention = () => {
-        toast.info('Esta es una notificación de prueba para una nueva intervención.', {
-            action: {
-                label: 'Ver',
-                onClick: () => setCurrentView('interventions'),
-            },
-        });
+        toast((t) => (
+            <span className="flex items-center">
+                Esta es una notificación de prueba para una nueva intervención.
+                <button 
+                    className="ml-4 px-3 py-1 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    onClick={() => {
+                        setCurrentView('interventions');
+                        toast.dismiss(t.id);
+                    }}
+                >
+                    Ver
+                </button>
+            </span>
+        ));
     };
 
     const renderView = () => {
@@ -213,11 +229,18 @@ const App: React.FC = () => {
                 return (
                     <CalendarView
                         events={appointments}
-                        onSlotClick={handleSlotClick}
-                        onEventClick={handleEventClick}
-                        onUpdateAppointmentDate={updateAppointmentDate}
                         isLoading={loadingAppointments}
                         error={errorAppointments}
+                        onSlotClick={handleSlotClick}
+                        onEventClick={handleEventClick}
+                        onUpdateAppointmentDate={async (eventId: string | number, newStartDate: Date) => {
+                            const event = appointments.find(a => a.id === eventId);
+                            if (event && event.end) {
+                                const duration = new Date(event.end).getTime() - new Date(event.start).getTime();
+                                const newEndDate = new Date(newStartDate.getTime() + duration);
+                                await updateAppointmentDate(Number(eventId), newStartDate, newEndDate);
+                            }
+                        }}
                     />
                 );
             case 'interventions':
@@ -226,11 +249,12 @@ const App: React.FC = () => {
                         interventions={interventions}
                         onUpdateStatus={updateInterventionStatus}
                         onDelete={handleDeleteIntervention}
-                        onGenerateResponse={(intervention) => setGeminiModalState({ isOpen: true, intervention })}
+                        onGenerateResponse={handleGenerateResponse}
+                        // onGenerateResponse={(intervention) => setGeminiModalState({ isOpen: true, intervention })}
                         onAdd={() => setInterventionModalState({ isOpen: true, intervention: null })}
                         onEdit={(intervention) => setInterventionModalState({ isOpen: true, intervention })}
                         isLoading={loadingInterventions}
-                        error={errorInterventions}
+                        error={errorInterventions ? new Error(errorInterventions) : null}
                         selectedIds={selectedInterventionIds}
                         onSelectionChange={setSelectedInterventionIds}
                         onDeleteSelected={handleDeleteSelectedInterventions}
@@ -264,7 +288,12 @@ const App: React.FC = () => {
                     <WaitingPatientsView
                         patients={waitingPatients}
                         onDelete={handleDeleteWaitingPatient}
-                        onUpdateStatus={updateWaitingPatient}
+                        onUpdateStatus={(id, estado) => {
+                            const patient = waitingPatients.find(p => p.id === id);
+                            if (patient) {
+                                updateWaitingPatient({ ...patient, estado });
+                            }
+                        }}
                         onAdd={() => setWaitingPatientModalState({ isOpen: true, patient: null })}
                         onEdit={(patient) => setWaitingPatientModalState({ isOpen: true, patient })}
                         isLoading={loadingWaitingPatients}
@@ -300,7 +329,7 @@ const App: React.FC = () => {
 
     return (
         <div className={`flex h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-50 ${theme}`}>
-            <Toaster richColors position="top-right" />
+            <Toaster position="top-right" />
             <Sidebar
                 currentView={currentView}
                 setCurrentView={setCurrentView}
@@ -321,7 +350,7 @@ const App: React.FC = () => {
             <AddInterventionModal modalState={interventionModalState} onClose={() => setInterventionModalState({ isOpen: false, intervention: null })} onSave={handleSaveIntervention} />
             <AddPaymentModal modalState={paymentModalState} onClose={() => setPaymentModalState({ isOpen: false, payment: null })} onSave={handleSavePayment} />
             <AddWaitingPatientModal modalState={waitingPatientModalState} onClose={() => setWaitingPatientModalState({ isOpen: false, patient: null })} onSave={handleSaveWaitingPatient} />
-            <GeminiModal modalState={geminiModalState} onClose={() => setGeminiModalState({ isOpen: false, intervention: null })} />
+            {/* <GeminiModal modalState={geminiModalState} onClose={() => setGeminiModalState({ isOpen: false, intervention: null })} /> */}
         </div>
     );
 };
