@@ -137,8 +137,8 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ modalState, onClose
                     </div>
                     <div className="bg-slate-50 dark:bg-slate-700/50 px-6 py-4 flex justify-between items-center">
                         <div>
-                            {event && typeof event.id === 'number' && (
-                                <button type="button" onClick={() => onDelete(event.id, event.title)} className="inline-flex items-center px-4 py-2 bg-red-100 dark:bg-red-500/10 text-red-700 dark:text-red-400 text-sm font-medium rounded-md hover:bg-red-200 dark:hover:bg-red-500/20 transition-colors">
+                            {event && event.id && (
+                                <button type="button" onClick={() => event.id && onDelete(event.id, event.title)} className="inline-flex items-center px-4 py-2 bg-red-100 dark:bg-red-500/10 text-red-700 dark:text-red-400 text-sm font-medium rounded-md hover:bg-red-200 dark:hover:bg-red-500/20 transition-colors">
                                     <Trash2 className="h-4 w-4 mr-2" />
                                     Eliminar
                                 </button>

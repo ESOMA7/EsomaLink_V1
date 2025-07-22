@@ -188,13 +188,14 @@ export const listUpcomingEvents = async (calendarId: string = 'primary', calenda
     const googleEvents = response.result.items;
 
     return googleEvents.map((event: any) => ({
-        id: `${calendarId}#${event.id}`,
+        id: event.id, // Use the original Google event ID
+        calendarId: calendarId, // Add the calendarId to each event
         title: event.summary || 'Sin título',
         start: new Date(event.start.dateTime || event.start.date),
         end: new Date(event.end.dateTime || event.end.date),
-        color: calendarColor,
-        professional: 'José',
-        patient: 'N/A',
+        color: calendarColor, // This might be undefined, but the hook will assign the correct one
+        professional: 'José', // Placeholder
+        patient: 'N/A', // Placeholder
         procedure: event.summary || 'N/A',
         whatsapp: '',
         estado: 'confirmed',

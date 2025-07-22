@@ -15,113 +15,125 @@ import {
     revokeGoogleToken
 } from '../services/googleCalendarService';
 
+interface GoogleTokenResponse {
+    access_token: string;
+    expires_in: number;
+    scope: string;
+    token_type: string;
+    [key: string]: any; // Allow for other properties.
+}
+
 export const useAppointments = () => {
 
     const [isGoogleApiInitialized, setIsGoogleApiInitialized] = useState(false);
     
-    const [googleAuthToken, setGoogleAuthToken] = useState<any>(null);
+    const [googleAuthToken, setGoogleAuthToken] = useState<GoogleTokenResponse | null>(null);
     const [allEvents, setAllEvents] = useState<AppointmentEvent[]>([]);
-    const [events, setEvents] = useState<AppointmentEvent[]>([]); // Filtered events
+    const [events, setEvents] = useState<AppointmentEvent[]>([]);
     const [userCalendars, setUserCalendars] = useState<Calendar[]>([]);
     const [visibleCalendarIds, setVisibleCalendarIds] = useState<Set<string>>(new Set());
-    const [isLoading, setIsLoading] = useState(false); // Default to false
+    const [isLoading, setIsLoading] = useState(false); 
     const [error, setError] = useState<string | null>(null);
 
-    const initializeGoogleSync = useCallback(() => {
-        return new Promise<void>((resolve, reject) => {
-            const initGapiAndTokenClient = async () => {
-                try {
-                    console.log('[useAppointments] Attempting to initialize GAPI client...');
-                    await initializeGapiClient();
-                    console.log('[useAppointments] GAPI client initialized. Attempting to initialize token client...');
-                    
-                    initializeTokenClient((tokenResponse) => {
-                        if (tokenResponse.error) {
-                            setError('Error de autenticación con Google. Por favor, intenta sincronizar de nuevo.');
-                            console.error('[useAppointments] Token Error:', tokenResponse.error);
-                            setGoogleAuthToken(null);
-                            setIsLoading(false);
-                            return;
-                        }
-                        console.log('[useAppointments] Google token response received.');
-                        setGoogleAuthToken(tokenResponse);
-                    });
-                    
-                    console.log('[useAppointments] Token client initialization process called. Setting token client ready.');
-                    
-                    resolve();
+    const fetchAllEvents = useCallback(async (token: GoogleTokenResponse | null) => {
+        if (!token) {
+            console.log('[fetchAllEvents] No auth token available, skipping fetch.');
+            return;
+        }
 
-                } catch (error) {
-                    setError('No se pudo inicializar la API de Google.');
-                    console.error('[useAppointments] Initialization error:', error);
-                    
-                    reject(error);
-                }
-            };
+        console.log('[fetchAllEvents] Auth token provided, starting to fetch data...');
+        setIsLoading(true);
+        try {
+            const calendars: Calendar[] = await listUserCalendars();
+            if (!calendars || calendars.length === 0) {
+                console.log('No user calendars found.');
+                setUserCalendars([]);
+                setAllEvents([]);
+                return;
+            }
+            setUserCalendars(calendars);
 
-            console.log('[useAppointments] Loading Google API Service on demand...');
-            loadGoogleApiService(() => {
-                console.log('[useAppointments] Google API Service loaded, now initializing clients.');
-                initGapiAndTokenClient();
-            });
-        });
+            const eventsPromises = calendars.map(calendar => listUpcomingEvents(calendar.id));
+            const eventsResults = await Promise.all(eventsPromises);
+            const combinedEvents = eventsResults.flat();
+            setAllEvents(combinedEvents);
+            console.log(`[fetchAllEvents] Fetched ${combinedEvents.length} events from ${calendars.length} calendars.`);
+        } catch (err: any) {
+            console.error('[fetchAllEvents] Error fetching data:', err);
+            setError(`Error al sincronizar con Google: ${err.message || 'Error desconocido'}`);
+            if (err.status === 401) {
+                setGoogleAuthToken(null);
+            }
+        } finally {
+            setIsLoading(false);
+        }
     }, []);
 
-    const fetchAllEvents = useCallback(async () => {
-        if (googleAuthToken) {
-            console.log('Auth token received, starting to fetch events from all calendars...');
-            setIsLoading(true);
+    const initializeGoogleSync = useCallback(() => {
+        const initGapiAndTokenClient = async () => {
             try {
-                const calendars: Calendar[] = await listUserCalendars();
-                if (!calendars || calendars.length === 0) {
-                    console.log('No user calendars found.');
-                    setEvents([]);
-                    setAllEvents([]);
-                    setUserCalendars([]);
-                    return; // Exit if no calendars
-                }
-
-                console.log(`Found ${calendars.length} calendars. Fetching events for each...`);
-                setUserCalendars(calendars);
-
-                const allEventPromises = calendars.map(calendar => 
-                    listUpcomingEvents(calendar.id, calendar.backgroundColor)
-                );
-
-                const allEventsArrays = await Promise.all(allEventPromises);
-                const flattenedEvents = allEventsArrays.flat();
-
-                console.log(`Fetched a total of ${flattenedEvents.length} events.`);
-                setAllEvents(flattenedEvents);
-                setEvents(flattenedEvents);
-
-                // Only set visible calendars on the first load, not on every refresh
-                if (visibleCalendarIds.size === 0) {
-                    const initialVisibleIds = new Set(calendars.map(c => c.id));
-                    setVisibleCalendarIds(initialVisibleIds);
-                }
-
-            } catch (err) {
-                console.error('Error fetching events:', err);
-                setError('Failed to fetch events from Google Calendar.');
-            } finally {
-                setIsLoading(false);
-                console.log('Finished fetching events.');
+                console.log('[useAppointments] Initializing GAPI and Token clients...');
+                await initializeGapiClient();
+                initializeTokenClient((tokenResponse) => {
+                    if (tokenResponse.error) {
+                        setError('Error de autenticación con Google. Por favor, intenta de nuevo.');
+                        console.error('[useAppointments] Token Error:', tokenResponse.error);
+                        setGoogleAuthToken(null);
+                        setIsLoading(false);
+                        return;
+                    }
+                    console.log('[useAppointments] Google token received.');
+                    setGoogleAuthToken(tokenResponse);
+                });
+                setIsGoogleApiInitialized(true);
+                console.log('[useAppointments] GAPI and Token clients initialized.');
+            } catch (error) {
+                setError('No se pudo inicializar la API de Google.');
+                console.error('[useAppointments] Initialization error:', error);
             }
+        };
+
+        console.log('[useAppointments] Loading Google API Service...');
+        loadGoogleApiService(initGapiAndTokenClient);
+    }, []);
+
+    // Initialize Google services when the hook mounts.
+    useEffect(() => {
+        initializeGoogleSync();
+    }, [initializeGoogleSync]);
+
+    // Fetch events whenever the auth token changes.
+    useEffect(() => {
+        if (googleAuthToken) {
+            console.log('[useAppointments] Auth token is present, fetching events...');
+            fetchAllEvents(googleAuthToken);
         }
-    }, [googleAuthToken, visibleCalendarIds.size]);
+    }, [googleAuthToken, fetchAllEvents]);
 
+    // Filter and process events for display.
     useEffect(() => {
-        fetchAllEvents();
-    }, [fetchAllEvents]);
+        const calendarColorMap = new Map(userCalendars.map(cal => [cal.id, cal.backgroundColor]));
 
-    useEffect(() => {
-        const filtered = allEvents.filter(event => {
-            const calendarId = event.id.toString().split('#')[0];
-            return visibleCalendarIds.has(calendarId);
-        });
-        setEvents(filtered);
-    }, [allEvents, visibleCalendarIds]);
+        const processedEvents = allEvents.map(event => ({
+            ...event,
+            color: event.calendarId ? calendarColorMap.get(event.calendarId) : event.color,
+        }));
+
+        let effectiveVisibleIds = visibleCalendarIds;
+
+        // On initial load, if calendars are loaded but no visibility is set, make all visible.
+        if (userCalendars.length > 0 && visibleCalendarIds.size === 0) {
+            const allCalendarIds = new Set(userCalendars.map(c => c.id));
+            setVisibleCalendarIds(allCalendarIds);
+            effectiveVisibleIds = allCalendarIds; // Use immediately for filtering.
+        }
+
+        const filteredEvents = processedEvents.filter(
+            event => event.calendarId && effectiveVisibleIds.has(event.calendarId)
+        );
+
+        setEvents(filteredEvents);
+    }, [allEvents, userCalendars, visibleCalendarIds]);
 
     const toggleCalendarVisibility = useCallback((calendarId: string) => {
         setVisibleCalendarIds(prev => {
@@ -135,152 +147,108 @@ export const useAppointments = () => {
         });
     }, []);
 
-    const revokeGoogleAccess = useCallback(() => {
-        if (googleAuthToken && googleAuthToken.access_token) {
-            console.log('[useAppointments] Revoking existing Google token...');
-            revokeGoogleToken(googleAuthToken.access_token, () => {
-                console.log('[useAppointments] Google token revoked successfully.');
-                setGoogleAuthToken(null);
-            });
-        } else {
-            console.log('[useAppointments] No Google token to revoke.');
+    const syncWithGoogle = useCallback(() => {
+        if (!isGoogleApiInitialized) {
+            setError('La API de Google no está lista. Inténtalo de nuevo en unos segundos.');
+            console.error('[useAppointments] Sync clicked before GAPI was initialized.');
+            return;
         }
-    }, [googleAuthToken]);
-
-    const syncWithGoogle = useCallback(async () => {
-        setIsLoading(true);
-        console.log('[useAppointments] Starting Google Sync process...');
 
         const proceedToRequest = () => {
             requestAccessToken();
         };
 
-        const performSync = () => {
-            if (googleAuthToken && googleAuthToken.access_token) {
-                console.log('[useAppointments] Found existing token, revoking before requesting new one.');
-                revokeGoogleToken(googleAuthToken.access_token, () => {
-                    console.log('[useAppointments] Old token revoked, now requesting new token.');
-                    setGoogleAuthToken(null);
-                    proceedToRequest();
-                });
-            } else {
-                console.log('[useAppointments] No existing token, requesting new one.');
+        if (googleAuthToken?.access_token) {
+            console.log('[useAppointments] Found existing token, revoking before requesting new one.');
+            revokeGoogleToken(googleAuthToken.access_token, () => {
+                console.log('[useAppointments] Old token revoked, now requesting new one.');
+                setGoogleAuthToken(null);
+                setAllEvents([]);
+                setUserCalendars([]);
                 proceedToRequest();
-            }
-        };
-
-        if (!isGoogleApiInitialized) {
-            console.log('[useAppointments] First sync. Initializing Google services...');
-            try {
-                await initializeGoogleSync();
-                setIsGoogleApiInitialized(true);
-                console.log('[useAppointments] Google services initialized. Now performing sync...');
-                performSync();
-            } catch (error) {
-                console.error('Failed to initialize Google services on demand:', error);
-                setError('Error al inicializar los servicios de Google. Inténtalo de nuevo.');
-                setIsLoading(false);
-            }
+            });
         } else {
-            console.log('[useAppointments] Google services already initialized. Proceeding with sync.');
-            performSync();
+            console.log('[useAppointments] No existing token, requesting new one.');
+            proceedToRequest();
         }
-    }, [isGoogleApiInitialized, googleAuthToken, initializeGoogleSync]);
+    }, [isGoogleApiInitialized, googleAuthToken]);
+
+    const revokeGoogleAccess = useCallback(() => {
+        if (googleAuthToken?.access_token) {
+            revokeGoogleToken(googleAuthToken.access_token, () => {
+                console.log('[useAppointments] Token revoked successfully.');
+                setGoogleAuthToken(null);
+                setAllEvents([]);
+                setUserCalendars([]);
+            });
+        }
+    }, [googleAuthToken]);
 
     const saveAppointment = useCallback(async (data: Omit<AppointmentEvent, 'title' | 'id'> & { id?: string | number }) => {
         const newTitle = `${data.patient} - ${data.procedure}`;
-
         try {
-            if (data.id) {
-                console.log('Updating event (not implemented):', data.id);
-                return { success: true };
-            } else {
-                const professionalCalendar = userCalendars.find(cal => cal.summary === data.professional);
-                if (!professionalCalendar) {
-                    console.error(`Calendar for professional '${data.professional}' not found.`);
-                    return { success: false };
-                }
-
-                const eventToSave = { ...data, title: newTitle };
-                await googleCalendarService.createEvent(professionalCalendar.id, eventToSave);
-                
-                // After successful creation, refetch all events to ensure UI is in sync.
-                await fetchAllEvents();
-
-                return { success: true };
+            const professionalCalendar = userCalendars.find(cal => cal.summary === data.professional);
+            if (!professionalCalendar) {
+                throw new Error(`Calendar for professional '${data.professional}' not found.`);
             }
+            const eventToSave = { ...data, title: newTitle };
+            await googleCalendarService.createEvent(professionalCalendar.id, eventToSave);
+            await fetchAllEvents(googleAuthToken);
+            return { success: true };
         } catch (error) {
             console.error('Failed to save appointment:', error);
             return { success: false };
         }
-    }, [userCalendars, fetchAllEvents]);
+    }, [userCalendars, googleAuthToken, fetchAllEvents]);
 
     const deleteAppointment = useCallback(async (id: string | number) => {
         try {
             const eventToDelete = allEvents.find(e => e.id === id);
-            if (!eventToDelete || !eventToDelete.calendarId) {
-                console.error('Event not found or has no calendar ID, cannot delete from Google.');
-                // If it's a local-only event, just filter it out
-                setAllEvents(prev => prev.filter(e => e.id !== id));
-                setEvents(prev => prev.filter(e => e.id !== id));
-                return { success: true };
+            if (!eventToDelete?.calendarId) {
+                throw new Error('Event not found or has no calendar ID.');
             }
-
             await googleCalendarService.deleteEvent(eventToDelete.calendarId, eventToDelete.id as string);
-            
-            // After successful deletion, refetch all events.
-            await fetchAllEvents();
-
+            await fetchAllEvents(googleAuthToken);
             return { success: true };
         } catch (error) {
             console.error('Failed to delete appointment:', error);
             return { success: false };
         }
-    }, [allEvents, fetchAllEvents]);
+    }, [allEvents, googleAuthToken, fetchAllEvents]);
 
     const updateAppointmentDate = useCallback(async (eventId: string | number, newStartDate: Date, newEndDate: Date) => {
         if (typeof eventId !== 'string') {
-            toast.info('La actualización de citas locales aún no está implementada.');
+            console.info('Local appointment date update not implemented.');
             return { success: false };
         }
-
         try {
             const eventToUpdate = allEvents.find(e => e.id === eventId);
-            if (!eventToUpdate || !eventToUpdate.calendarId) {
-                throw new Error('No se pudo encontrar el evento o su calendario para actualizar.');
+            if (!eventToUpdate?.calendarId) {
+                throw new Error('Event to update not found or has no calendar ID.');
             }
-
             await googleCalendarService.updateEventDateTime(eventToUpdate.calendarId, eventId, newStartDate, newEndDate);
-            
-            // After successful update, refetch all events to ensure UI is in sync.
-            await fetchAllEvents();
-
-            toast.success('La fecha de la cita ha sido actualizada.');
+            await fetchAllEvents(googleAuthToken);
             return { success: true };
-
         } catch (error) {
             console.error('Failed to update appointment date:', error);
-            toast.error('No se pudo actualizar la cita en Google Calendar.');
-            // No rollback needed as we are not doing optimistic updates anymore.
-            // We just refetch to get the real state.
-            await fetchAllEvents();
+            await fetchAllEvents(googleAuthToken); // Refetch to revert optimistic UI changes if any.
             return { success: false };
         }
-    }, [allEvents, fetchAllEvents]);
+    }, [allEvents, googleAuthToken, fetchAllEvents]);
 
-    return { 
-        events, 
-        isLoading, 
-        error, 
-        saveAppointment, 
-        deleteAppointment, 
-        updateAppointmentDate, 
-        syncWithGoogle, 
-        isAuthenticatedWithGoogle: !!googleAuthToken, 
-        revokeGoogleAccess, 
-        userCalendars, 
-        visibleCalendarIds, 
+    return {
+        events,
+        isLoading,
+        error,
+        saveAppointment,
+        deleteAppointment,
+        updateAppointmentDate,
+        syncWithGoogle,
+        isAuthenticatedWithGoogle: !!googleAuthToken,
+        revokeGoogleAccess,
+        userCalendars,
+        visibleCalendarIds,
         toggleCalendarVisibility,
-        refreshEvents: fetchAllEvents // Expose the refresh function
+        refreshEvents: () => fetchAllEvents(googleAuthToken),
     };
 };
