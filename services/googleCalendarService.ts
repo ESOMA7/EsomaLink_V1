@@ -158,7 +158,21 @@ export const revokeGoogleToken = (accessToken: string, onRevoke: () => void) => 
     }
 };
 
-export const listUpcomingEvents = async (calendarId: string = 'primary'): Promise<AppointmentEvent[]> => {
+export const listUserCalendars = async () => {
+    if (!window.gapi.client.calendar) {
+        throw new Error('Google Calendar API client not initialized.');
+    }
+    try {
+        const response = await window.gapi.client.calendar.calendarList.list();
+        console.log('Google API response for calendars:', response.result.items);
+        return response.result.items;
+    } catch (error) {
+        console.error('Error fetching calendar list:', error);
+        throw error;
+    }
+};
+
+export const listUpcomingEvents = async (calendarId: string = 'primary', calendarColor?: string): Promise<AppointmentEvent[]> => {
     if (!window.gapi.client) {
         throw new Error('GAPI client is not initialized.');
     }
@@ -171,12 +185,68 @@ export const listUpcomingEvents = async (calendarId: string = 'primary'): Promis
         'orderBy': 'startTime'
     });
 
-    return response.result.items?.map((event: any) => ({
-        id: event.id,
-        title: event.summary,
+    const googleEvents = response.result.items;
+
+    return googleEvents.map((event: any) => ({
+        id: `${calendarId}#${event.id}`,
+        title: event.summary || 'Sin título',
         start: new Date(event.start.dateTime || event.start.date),
         end: new Date(event.end.dateTime || event.end.date),
-        patient: event.summary?.split(' - ')[1] || '',
-        procedure: event.summary?.split(' - ')[0] || '',
+        color: calendarColor,
+        professional: 'José',
+        patient: 'N/A',
+        procedure: event.summary || 'N/A',
+        whatsapp: '',
+        estado: 'confirmed',
     })) || [];
+};
+
+export const createEvent = async (calendarId: string, event: Omit<AppointmentEvent, 'id' | 'title'>) => {
+    if (!window.gapi.client.calendar) {
+        throw new Error('Google Calendar API client not initialized.');
+    }
+
+    const resource = {
+        summary: `${event.patient} - ${event.procedure}`,
+        start: {
+            dateTime: event.start.toISOString(),
+            timeZone: 'America/Mexico_City',
+        },
+        end: {
+            dateTime: event.end.toISOString(),
+            timeZone: 'America/Mexico_City',
+        },
+        // You can add more event properties here, like description, attendees, etc.
+    };
+
+    const response = await window.gapi.client.calendar.events.insert({
+        calendarId: calendarId,
+        resource: resource,
+    });
+
+    return response.result;
+};
+
+export const updateEventDateTime = async (calendarId: string, eventId: string, newStart: Date, newEnd: Date) => {
+    if (!window.gapi.client.calendar) {
+        throw new Error('Google Calendar API client not initialized.');
+    }
+
+    // The Google Calendar API expects the event ID without the calendarId prefix.
+    const realEventId = eventId.split('#').pop();
+
+    try {
+        const response = await window.gapi.client.calendar.events.patch({
+            calendarId: calendarId,
+            eventId: realEventId,
+            resource: {
+                start: { dateTime: newStart.toISOString() },
+                end: { dateTime: newEnd.toISOString() },
+            },
+        });
+        return response.result;
+    } catch (error) {
+        console.error('Error updating event date/time:', error);
+        throw error;
+    }
 };

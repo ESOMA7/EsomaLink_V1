@@ -8,29 +8,19 @@ import InterventionsView from './components/views/InterventionsView';
 import NotesView from './components/views/NotesView';
 import WaitingPatientsView from './components/views/WaitingPatientsView';
 import ConfirmationModal from './components/ui/ConfirmationModal';
-import AppointmentModal from './components/ui/AppointmentModal';
+
 // import GeminiModal from './components/ui/GeminiModal';
 import AddInterventionModal from './components/ui/AddInterventionModal';
 import AddPaymentModal from './components/ui/AddPaymentModal';
 import AddWaitingPatientModal from './components/ui/AddWaitingPatientModal';
-import { useAuth, useAppointments, useInterventions, usePayments, useNotes, useWaitingPatients } from '@/hooks';
-import { AppointmentEvent, Intervention, Payment, WaitingPatient, View } from './types';
+import { useAuth, useInterventions, usePayments, useNotes, useWaitingPatients } from '@/hooks';
+import { Intervention, Payment, WaitingPatient, View } from './types';
 import { Toaster, toast } from 'react-hot-toast';
 import { LoaderCircle } from 'lucide-react';
 
 const App: React.FC = () => {
-    const { isAuthenticated, isAuthLoading, authError, setAuthError, loginWithGoogle, logout: supabaseLogout } = useAuth();
-    const { 
-        events: appointments, 
-        isLoading: loadingAppointments, 
-        error: errorAppointments, 
-        saveAppointment, 
-        deleteAppointment, 
-        updateAppointmentDate, 
-        syncWithGoogle, 
-        isAuthenticatedWithGoogle, 
-        revokeGoogleAccess 
-    } = useAppointments();
+        const { isAuthenticated, isAuthLoading, authError, setAuthError, loginWithGoogle, logout: supabaseLogout } = useAuth();
+
 
     const [currentView, setCurrentView] = useState<View>('dashboard');
     const [theme, setTheme] = useState<'light' | 'dark'>(() => (localStorage.getItem('theme') as 'light' | 'dark') || 'light');
@@ -46,7 +36,7 @@ const App: React.FC = () => {
     const { notes, isLoading: loadingNotes, error: errorNotes, saveNote, deleteNote } = useNotes();
     const { waitingPatients, isLoading: loadingWaitingPatients, error: errorWaitingPatients, saveWaitingPatient, updateWaitingPatient, deleteWaitingPatient, fetchWaitingPatients } = useWaitingPatients();
 
-    const [appointmentModalState, setAppointmentModalState] = useState<{ isOpen: boolean; event: AppointmentEvent | null; date: Date | null; }>({ isOpen: false, event: null, date: null });
+
     const [interventionModalState, setInterventionModalState] = useState<{ isOpen: boolean; intervention: Intervention | null; }>({ isOpen: false, intervention: null });
     const [paymentModalState, setPaymentModalState] = useState<{ isOpen: boolean; payment: Payment | null; }>({ isOpen: false, payment: null });
     const [waitingPatientModalState, setWaitingPatientModalState] = useState<{ isOpen: boolean; patient: WaitingPatient | null; }>({ isOpen: false, patient: null });
@@ -68,38 +58,10 @@ const App: React.FC = () => {
         setConfirmationModalState({
             isOpen: true,
             title: 'Cerrar Sesión',
-            message: '¿Estás seguro de que quieres cerrar sesión? Esto también revocará el acceso a Google Calendar si está conectado.',
+            message: '¿Estás seguro de que deseas cerrar sesión?',
             onConfirm: async () => {
-                if (isAuthenticatedWithGoogle) {
-                    revokeGoogleAccess();
-                }
+                // Note: Google token revocation is now handled inside useAppointments
                 await supabaseLogout();
-                toast.success('Sesión cerrada con éxito.');
-                setConfirmationModalState({ isOpen: false, title: '', message: '', onConfirm: null });
-            }
-        });
-    };
-
-    const handleSaveAppointment = async (data: Omit<AppointmentEvent, 'title' | 'id'> & { id?: number }) => {
-        await saveAppointment(data);
-        setAppointmentModalState({ isOpen: false, event: null, date: null });
-        if (areNotificationsEnabled) {
-            toast.success('Cita guardada con éxito.');
-        }
-    };
-
-    const handleDeleteAppointment = (id: number, title: string) => {
-        setConfirmationModalState({
-            isOpen: true,
-            title: `Eliminar Cita: ${title}`,
-            message: '¿Estás seguro de que deseas eliminar esta cita? Esta acción no se puede deshacer.',
-            onConfirm: async () => {
-                try {
-                    await deleteAppointment(id);
-                    if (areNotificationsEnabled) toast.success('Cita eliminada con éxito.');
-                } catch (error) {
-                    if (areNotificationsEnabled) toast.error('Error al eliminar la cita.');
-                }
                 setConfirmationModalState({ isOpen: false, title: '', message: '', onConfirm: null });
             }
         });
@@ -206,14 +168,6 @@ const App: React.FC = () => {
         });
     };
 
-    const handleSlotClick = (date: Date) => {
-        setAppointmentModalState({ isOpen: true, event: null, date });
-    };
-
-    const handleEventClick = (event: any) => {
-        setAppointmentModalState({ isOpen: true, event, date: event.start });
-    };
-
     const handleGenerateResponse = (_intervention: Intervention) => {
         toast('La generación de respuestas con IA está deshabilitada temporalmente.');
     };
@@ -235,26 +189,12 @@ const App: React.FC = () => {
         ));
     };
 
-    const handleSyncWithGoogle = () => {
-        console.log('[App.tsx] handleSyncWithGoogle called!');
-        syncWithGoogle();
-    };
-
     const renderView = () => {
         switch (currentView) {
             case 'dashboard':
-                return <DashboardView setCurrentView={setCurrentView} interventions={interventions} payments={payments} appointments={appointments} isLoading={loadingAppointments || loadingInterventions || loadingPayments} error={errorAppointments || errorInterventions || errorPayments} newInterventionAvailable={hasNewIntervention} onTestNewIntervention={handleTestNewIntervention} />;
+                                                return <DashboardView setCurrentView={setCurrentView} interventions={interventions} payments={payments} appointments={[]} isLoading={loadingInterventions || loadingPayments} error={errorInterventions || errorPayments} newInterventionAvailable={hasNewIntervention} onTestNewIntervention={handleTestNewIntervention} />;
             case 'calendar':
-                return <CalendarView 
-                    events={appointments} 
-                    onSlotClick={handleSlotClick} 
-                    onEventClick={handleEventClick} 
-                    onUpdateAppointmentDate={async (eventId, newStartDate) => { const event = appointments.find(a => a.id === eventId); if (event && event.end) { const duration = new Date(event.end).getTime() - new Date(event.start).getTime(); const newEndDate = new Date(newStartDate.getTime() + duration); await updateAppointmentDate(Number(eventId), newStartDate, newEndDate); } }} 
-                    isLoading={loadingAppointments} 
-                    error={errorAppointments}
-                    onSyncWithGoogle={handleSyncWithGoogle}
-                    isAuthenticatedWithGoogle={isAuthenticatedWithGoogle}
-                />;
+                return <CalendarView />;
             case 'interventions':
                 return <InterventionsView interventions={interventions} onUpdateStatus={updateInterventionStatus} onDelete={handleDeleteIntervention} onGenerateResponse={handleGenerateResponse} onAdd={() => setInterventionModalState({ isOpen: true, intervention: null })} onEdit={(intervention) => setInterventionModalState({ isOpen: true, intervention })} isLoading={loadingInterventions} error={errorInterventions ? new Error(errorInterventions) : null} selectedIds={selectedInterventionIds} onSelectionChange={setSelectedInterventionIds} onDeleteSelected={handleDeleteSelectedInterventions} fetchInterventions={fetchInterventions} />;
             case 'payments':
@@ -297,7 +237,7 @@ const App: React.FC = () => {
 
             {/* Modals */}
             <ConfirmationModal modalState={confirmationModalState} setModalState={setConfirmationModalState} />
-            <AppointmentModal modalState={appointmentModalState} onClose={() => setAppointmentModalState({ isOpen: false, event: null, date: null })} onSave={handleSaveAppointment} onDelete={handleDeleteAppointment} />
+            
             <AddInterventionModal modalState={interventionModalState} onClose={() => setInterventionModalState({ isOpen: false, intervention: null })} onSave={handleSaveIntervention} />
             <AddPaymentModal modalState={paymentModalState} onClose={() => setPaymentModalState({ isOpen: false, payment: null })} onSave={handleSavePayment} />
             <AddWaitingPatientModal modalState={waitingPatientModalState} onClose={() => setWaitingPatientModalState({ isOpen: false, patient: null })} onSave={handleSaveWaitingPatient} />

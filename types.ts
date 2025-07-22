@@ -10,12 +10,14 @@ export interface AppointmentEvent {
     title: string;
     start: Date;
     end: Date;
-    professional: 'José' | 'Loreta' | 'Malka';
+    professional: string;
     patient: string;
     procedure: string;
     whatsapp: string;
     estado: 'pending' | 'confirmed' | 'cancelled' | 'completed';
     duration?: number; // Optional duration in minutes
+    color?: string; // Optional color for the event background
+    calendarId?: string; // ID of the calendar the event belongs to
 }
 
 export interface Intervention {

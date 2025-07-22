@@ -151,7 +151,8 @@ const MonthView: React.FC<MonthViewProps> = ({ currentDate, events, onDayClick, 
                                         onDragStart={(e) => { e.stopPropagation(); e.dataTransfer.setData('text/plain', String(event.id)); setDraggedEvent(event); }}
                                         onDragEnd={(e) => { e.stopPropagation(); setDraggedEvent(null); setDropTargetDay(null); }}
                                         onClick={(e) => { e.stopPropagation(); onEventClick(event); }} 
-                                        className={`p-1 rounded text-white text-[10px] leading-tight cursor-grab ${getEventColor(event.professional)} ${draggedEvent?.id === event.id ? 'opacity-50' : ''}`}
+                                        style={{ backgroundColor: event.color || getEventColor(event.professional) }}
+                                        className={`p-1 rounded text-white text-[10px] leading-tight cursor-grab ${draggedEvent?.id === event.id ? 'opacity-50' : ''}`}
                                     >
                                         <p className="font-semibold truncate">{event.procedure}</p>
                                         <p className="truncate">{new Date(event.start).toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit', hour12: false })}</p>
@@ -194,7 +195,7 @@ const MonthView: React.FC<MonthViewProps> = ({ currentDate, events, onDayClick, 
                                     onClick={() => { onEventClick(event); setPopover(null); }}
                                     className={`w-full text-left p-2 rounded flex items-center hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors`}
                                 >
-                                    <span className={`w-2 h-2 flex-shrink-0 rounded-full mr-3 ${getEventColor(event.professional).split(' ')[0]}`}></span>
+                                    <span style={{ backgroundColor: event.color || getEventColor(event.professional) }} className={`w-2 h-2 flex-shrink-0 rounded-full mr-3`}></span>
                                     <div className="flex-grow text-xs">
                                         <p className="font-semibold text-slate-800 dark:text-slate-200 truncate">{event.procedure}</p>
                                         <p className="text-slate-500 dark:text-slate-400 truncate">
