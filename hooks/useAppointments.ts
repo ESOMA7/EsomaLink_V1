@@ -6,41 +6,57 @@ import {
     initializeGapiClient,
     initializeTokenClient,
     requestAccessToken,
-    listUpcomingEvents
+    listUpcomingEvents,
+
+    revokeGoogleToken
 } from '../services/googleCalendarService';
 
 export const useAppointments = () => {
 
-    const [isTokenClientReady, setIsTokenClientReady] = useState(false);
+    const [isGoogleApiInitialized, setIsGoogleApiInitialized] = useState(false);
+    
     const [googleAuthToken, setGoogleAuthToken] = useState<any>(null);
     const [events, setEvents] = useState<AppointmentEvent[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(false); // Default to false
     const [error, setError] = useState<string | null>(null);
-    
-    useEffect(() => {
-        const initGapiAndTokenClient = async () => {
-            try {
-                await initializeGapiClient();
-                initializeTokenClient((tokenResponse) => {
-                    if (tokenResponse.error) {
-                        setError('Error de autenticación con Google.');
-                        console.error('Token Error:', tokenResponse.error);
-                        return;
-                    }
-                    setGoogleAuthToken(tokenResponse);
-                });
-                setIsTokenClientReady(true); // Token client is ready
-            } catch (error) {
-                setError('No se pudo inicializar la API de Google.');
-                console.error('Initialization error:', error);
-            }
-        };
 
-        // Load the GAPI script. The service will call back into initGapiAndTokenClient
-        // once the script is fully loaded and ready.
-        loadGoogleApiService(() => {
-            // gapi is loaded, now load the client
-            window.gapi.load('client', initGapiAndTokenClient);
+    const initializeGoogleSync = useCallback(() => {
+        return new Promise<void>((resolve, reject) => {
+            const initGapiAndTokenClient = async () => {
+                try {
+                    console.log('[useAppointments] Attempting to initialize GAPI client...');
+                    await initializeGapiClient();
+                    console.log('[useAppointments] GAPI client initialized. Attempting to initialize token client...');
+                    
+                    initializeTokenClient((tokenResponse) => {
+                        if (tokenResponse.error) {
+                            setError('Error de autenticación con Google. Por favor, intenta sincronizar de nuevo.');
+                            console.error('[useAppointments] Token Error:', tokenResponse.error);
+                            setGoogleAuthToken(null);
+                            setIsLoading(false);
+                            return;
+                        }
+                        console.log('[useAppointments] Google token response received.');
+                        setGoogleAuthToken(tokenResponse);
+                    });
+                    
+                    console.log('[useAppointments] Token client initialization process called. Setting token client ready.');
+                    
+                    resolve();
+
+                } catch (error) {
+                    setError('No se pudo inicializar la API de Google.');
+                    console.error('[useAppointments] Initialization error:', error);
+                    
+                    reject(error);
+                }
+            };
+
+            console.log('[useAppointments] Loading Google API Service on demand...');
+            loadGoogleApiService(() => {
+                console.log('[useAppointments] Google API Service loaded, now initializing clients.');
+                initGapiAndTokenClient();
+            });
         });
     }, []);
 
@@ -68,14 +84,57 @@ export const useAppointments = () => {
         fetchEvents();
     }, [googleAuthToken]);
 
-    const syncWithGoogle = useCallback(() => {
-        if (isTokenClientReady) {
-            requestAccessToken();
+    const revokeGoogleAccess = useCallback(() => {
+        if (googleAuthToken && googleAuthToken.access_token) {
+            console.log('[useAppointments] Revoking existing Google token...');
+            revokeGoogleToken(googleAuthToken.access_token, () => {
+                console.log('[useAppointments] Google token revoked successfully.');
+                setGoogleAuthToken(null);
+            });
         } else {
-            setError("El servicio de Google no está listo. Inténtalo de nuevo en unos segundos.");
-            console.error("syncWithGoogle called before token client was ready.");
+            console.log('[useAppointments] No Google token to revoke.');
         }
-    }, [isTokenClientReady]);
+    }, [googleAuthToken]);
+
+    const syncWithGoogle = useCallback(async () => {
+        setIsLoading(true);
+        console.log('[useAppointments] Starting Google Sync process...');
+
+        const proceedToRequest = () => {
+            requestAccessToken();
+        };
+
+        const performSync = () => {
+            if (googleAuthToken && googleAuthToken.access_token) {
+                console.log('[useAppointments] Found existing token, revoking before requesting new one.');
+                revokeGoogleToken(googleAuthToken.access_token, () => {
+                    console.log('[useAppointments] Old token revoked, now requesting new token.');
+                    setGoogleAuthToken(null);
+                    proceedToRequest();
+                });
+            } else {
+                console.log('[useAppointments] No existing token, requesting new one.');
+                proceedToRequest();
+            }
+        };
+
+        if (!isGoogleApiInitialized) {
+            console.log('[useAppointments] First sync. Initializing Google services...');
+            try {
+                await initializeGoogleSync();
+                setIsGoogleApiInitialized(true);
+                console.log('[useAppointments] Google services initialized. Now performing sync...');
+                performSync();
+            } catch (error) {
+                console.error('Failed to initialize Google services on demand:', error);
+                setError('Error al inicializar los servicios de Google. Inténtalo de nuevo.');
+                setIsLoading(false);
+            }
+        } else {
+            console.log('[useAppointments] Google services already initialized. Proceeding with sync.');
+            performSync();
+        }
+    }, [isGoogleApiInitialized, googleAuthToken, initializeGoogleSync]);
 
     const saveAppointment = useCallback(async (eventData: Omit<AppointmentEvent, 'title' | 'id'> & { id?: number }) => {
         setEvents(prevEvents => {
@@ -110,5 +169,5 @@ export const useAppointments = () => {
         });
     }, []);
 
-    return { events, isLoading, error, saveAppointment, deleteAppointment, updateAppointmentDate, syncWithGoogle, isReadyToSync: isTokenClientReady, isAuthenticatedWithGoogle: !!googleAuthToken };
+                return { events, isLoading, error, saveAppointment, deleteAppointment, updateAppointmentDate, syncWithGoogle, isAuthenticatedWithGoogle: !!googleAuthToken, revokeGoogleAccess };
 };

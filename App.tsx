@@ -19,14 +19,25 @@ import { Toaster, toast } from 'react-hot-toast';
 import { LoaderCircle } from 'lucide-react';
 
 const App: React.FC = () => {
-    const { isAuthenticated, isAuthLoading, authError, setAuthError, loginWithGoogle, logout } = useAuth();
+    const { isAuthenticated, isAuthLoading, authError, setAuthError, loginWithGoogle, logout: supabaseLogout } = useAuth();
+    const { 
+        events: appointments, 
+        isLoading: loadingAppointments, 
+        error: errorAppointments, 
+        saveAppointment, 
+        deleteAppointment, 
+        updateAppointmentDate, 
+        syncWithGoogle, 
+        isAuthenticatedWithGoogle, 
+        revokeGoogleAccess 
+    } = useAppointments();
+
     const [currentView, setCurrentView] = useState<View>('dashboard');
     const [theme, setTheme] = useState<'light' | 'dark'>(() => (localStorage.getItem('theme') as 'light' | 'dark') || 'light');
     const [areNotificationsEnabled, setAreNotificationsEnabled] = useState(() => localStorage.getItem('notifications') === 'true');
     const [hasNewIntervention, setHasNewIntervention] = useState(false);
 
-    const { events: appointments, isLoading: loadingAppointments, error: errorAppointments, saveAppointment, deleteAppointment, updateAppointmentDate, syncWithGoogle, isReadyToSync, isAuthenticatedWithGoogle } = useAppointments();
-        const onNewIntervention = useCallback(() => {
+    const onNewIntervention = useCallback(() => {
         setHasNewIntervention(true);
     }, []);
 
@@ -39,9 +50,7 @@ const App: React.FC = () => {
     const [interventionModalState, setInterventionModalState] = useState<{ isOpen: boolean; intervention: Intervention | null; }>({ isOpen: false, intervention: null });
     const [paymentModalState, setPaymentModalState] = useState<{ isOpen: boolean; payment: Payment | null; }>({ isOpen: false, payment: null });
     const [waitingPatientModalState, setWaitingPatientModalState] = useState<{ isOpen: boolean; patient: WaitingPatient | null; }>({ isOpen: false, patient: null });
-    // const [geminiModalState, setGeminiModalState] = useState<{ isOpen: boolean, intervention: Intervention | null }>({ isOpen: false, intervention: null });
     const [selectedInterventionIds, setSelectedInterventionIds] = useState<number[]>([]);
-
     const [confirmationModalState, setConfirmationModalState] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: (() => void) | null }>({ isOpen: false, title: '', message: '', onConfirm: null });
 
     useEffect(() => {
@@ -54,6 +63,22 @@ const App: React.FC = () => {
     useEffect(() => {
         localStorage.setItem('notifications', String(areNotificationsEnabled));
     }, [areNotificationsEnabled]);
+
+    const handleLogout = () => {
+        setConfirmationModalState({
+            isOpen: true,
+            title: 'Cerrar Sesión',
+            message: '¿Estás seguro de que quieres cerrar sesión? Esto también revocará el acceso a Google Calendar si está conectado.',
+            onConfirm: async () => {
+                if (isAuthenticatedWithGoogle) {
+                    revokeGoogleAccess();
+                }
+                await supabaseLogout();
+                toast.success('Sesión cerrada con éxito.');
+                setConfirmationModalState({ isOpen: false, title: '', message: '', onConfirm: null });
+            }
+        });
+    };
 
     const handleSaveAppointment = async (data: Omit<AppointmentEvent, 'title' | 'id'> & { id?: number }) => {
         await saveAppointment(data);
@@ -189,7 +214,7 @@ const App: React.FC = () => {
         setAppointmentModalState({ isOpen: true, event, date: event.start });
     };
 
-        const handleGenerateResponse = (_intervention: Intervention) => {
+    const handleGenerateResponse = (_intervention: Intervention) => {
         toast('La generación de respuestas con IA está deshabilitada temporalmente.');
     };
 
@@ -210,115 +235,38 @@ const App: React.FC = () => {
         ));
     };
 
+    const handleSyncWithGoogle = () => {
+        console.log('[App.tsx] handleSyncWithGoogle called!');
+        syncWithGoogle();
+    };
+
     const renderView = () => {
         switch (currentView) {
             case 'dashboard':
-                return (
-                    <DashboardView
-                        setCurrentView={setCurrentView}
-                        interventions={interventions}
-                        payments={payments}
-                        appointments={appointments}
-                        isLoading={loadingAppointments || loadingInterventions || loadingPayments}
-                        error={errorAppointments || errorInterventions || errorPayments}
-                        newInterventionAvailable={hasNewIntervention}
-                        onTestNewIntervention={handleTestNewIntervention}
-                    />
-                );
+                return <DashboardView setCurrentView={setCurrentView} interventions={interventions} payments={payments} appointments={appointments} isLoading={loadingAppointments || loadingInterventions || loadingPayments} error={errorAppointments || errorInterventions || errorPayments} newInterventionAvailable={hasNewIntervention} onTestNewIntervention={handleTestNewIntervention} />;
             case 'calendar':
-                return (
-                    <CalendarView
-                        events={appointments}
-                        isLoading={loadingAppointments}
-                        error={errorAppointments}
-                        onSlotClick={handleSlotClick}
-                        onEventClick={handleEventClick}
-                        onUpdateAppointmentDate={async (eventId: string | number, newStartDate: Date) => {
-                            const event = appointments.find(a => a.id === eventId);
-                            if (event && event.end) {
-                                const duration = new Date(event.end).getTime() - new Date(event.start).getTime();
-                                const newEndDate = new Date(newStartDate.getTime() + duration);
-                                await updateAppointmentDate(Number(eventId), newStartDate, newEndDate);
-                            }
-                        }}
-                        onSyncWithGoogle={syncWithGoogle}
-                        isReadyToSync={isReadyToSync}
-                        isAuthenticatedWithGoogle={isAuthenticatedWithGoogle}
-                    />
-                );
+                return <CalendarView 
+                    events={appointments} 
+                    onSlotClick={handleSlotClick} 
+                    onEventClick={handleEventClick} 
+                    onUpdateAppointmentDate={async (eventId, newStartDate) => { const event = appointments.find(a => a.id === eventId); if (event && event.end) { const duration = new Date(event.end).getTime() - new Date(event.start).getTime(); const newEndDate = new Date(newStartDate.getTime() + duration); await updateAppointmentDate(Number(eventId), newStartDate, newEndDate); } }} 
+                    isLoading={loadingAppointments} 
+                    error={errorAppointments}
+                    onSyncWithGoogle={handleSyncWithGoogle}
+                    isAuthenticatedWithGoogle={isAuthenticatedWithGoogle}
+                />;
             case 'interventions':
-                return (
-                    <InterventionsView
-                        interventions={interventions}
-                        onUpdateStatus={updateInterventionStatus}
-                        onDelete={handleDeleteIntervention}
-                        onGenerateResponse={handleGenerateResponse}
-                        // onGenerateResponse={(intervention) => setGeminiModalState({ isOpen: true, intervention })}
-                        onAdd={() => setInterventionModalState({ isOpen: true, intervention: null })}
-                        onEdit={(intervention) => setInterventionModalState({ isOpen: true, intervention })}
-                        isLoading={loadingInterventions}
-                        error={errorInterventions ? new Error(errorInterventions) : null}
-                        selectedIds={selectedInterventionIds}
-                        onSelectionChange={setSelectedInterventionIds}
-                        onDeleteSelected={handleDeleteSelectedInterventions}
-                        fetchInterventions={fetchInterventions}
-                    />
-                );
+                return <InterventionsView interventions={interventions} onUpdateStatus={updateInterventionStatus} onDelete={handleDeleteIntervention} onGenerateResponse={handleGenerateResponse} onAdd={() => setInterventionModalState({ isOpen: true, intervention: null })} onEdit={(intervention) => setInterventionModalState({ isOpen: true, intervention })} isLoading={loadingInterventions} error={errorInterventions ? new Error(errorInterventions) : null} selectedIds={selectedInterventionIds} onSelectionChange={setSelectedInterventionIds} onDeleteSelected={handleDeleteSelectedInterventions} fetchInterventions={fetchInterventions} />;
             case 'payments':
-                return (
-                    <PaymentsView
-                        payments={payments}
-                        onDelete={handleDeletePayment}
-                        onAdd={() => setPaymentModalState({ isOpen: true, payment: null })}
-                        onEdit={(payment) => setPaymentModalState({ isOpen: true, payment })}
-                        isLoading={loadingPayments}
-                        error={errorPayments}
-                        fetchPayments={fetchPayments}
-                    />
-                );
+                return <PaymentsView payments={payments} onDelete={handleDeletePayment} onAdd={() => setPaymentModalState({ isOpen: true, payment: null })} onEdit={(payment) => setPaymentModalState({ isOpen: true, payment })} isLoading={loadingPayments} error={errorPayments} fetchPayments={fetchPayments} />;
             case 'notes':
-                return (
-                    <NotesView
-                        notes={notes}
-                        onSaveNote={saveNote}
-                        onDeleteNote={handleDeleteNote}
-                        isLoading={loadingNotes}
-                        error={errorNotes}
-                    />
-                );
+                return <NotesView notes={notes} onSaveNote={saveNote} onDeleteNote={handleDeleteNote} isLoading={loadingNotes} error={errorNotes} />;
             case 'waiting_patients':
-                return (
-                    <WaitingPatientsView
-                        patients={waitingPatients}
-                        onDelete={handleDeleteWaitingPatient}
-                        onUpdateStatus={(id, estado) => {
-                            const patient = waitingPatients.find(p => p.id === id);
-                            if (patient) {
-                                updateWaitingPatient({ ...patient, estado });
-                            }
-                        }}
-                        onAdd={() => setWaitingPatientModalState({ isOpen: true, patient: null })}
-                        onEdit={(patient) => setWaitingPatientModalState({ isOpen: true, patient })}
-                        isLoading={loadingWaitingPatients}
-                        error={errorWaitingPatients}
-                        fetchWaitingPatients={fetchWaitingPatients}
-                    />
-                );
+                return <WaitingPatientsView patients={waitingPatients} onDelete={handleDeleteWaitingPatient} onUpdateStatus={(id, estado) => { const patient = waitingPatients.find(p => p.id === id); if (patient) { updateWaitingPatient({ ...patient, estado }); } }} onAdd={() => setWaitingPatientModalState({ isOpen: true, patient: null })} onEdit={(patient) => setWaitingPatientModalState({ isOpen: true, patient })} isLoading={loadingWaitingPatients} error={errorWaitingPatients} fetchWaitingPatients={fetchWaitingPatients} />;
             case 'settings':
                 return <div>Settings View</div>;
             default:
-                return (
-                    <DashboardView
-                        setCurrentView={setCurrentView}
-                        interventions={interventions}
-                        payments={payments}
-                        appointments={appointments}
-                        isLoading={loadingAppointments || loadingInterventions || loadingPayments}
-                        error={errorAppointments || errorInterventions || errorPayments}
-                        newInterventionAvailable={hasNewIntervention}
-                        onTestNewIntervention={handleTestNewIntervention}
-                    />
-                );
+                return <DashboardView setCurrentView={setCurrentView} interventions={interventions} payments={payments} appointments={appointments} isLoading={loadingAppointments || loadingInterventions || loadingPayments} error={errorAppointments || errorInterventions || errorPayments} newInterventionAvailable={hasNewIntervention} onTestNewIntervention={handleTestNewIntervention} />;
         }
     };
 
@@ -331,12 +279,12 @@ const App: React.FC = () => {
     }
 
     return (
-        <div className={`flex h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-50 ${theme}`}>
-            <Toaster position="top-right" />
+        <div className="flex h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-50">
+            <Toaster position="top-center" reverseOrder={false} />
             <Sidebar
                 currentView={currentView}
                 setCurrentView={setCurrentView}
-                onLogout={logout}
+                onLogout={handleLogout}
                 theme={theme}
                 onToggleTheme={() => setTheme(theme === 'light' ? 'dark' : 'light')}
                 areNotificationsEnabled={areNotificationsEnabled}
@@ -353,7 +301,6 @@ const App: React.FC = () => {
             <AddInterventionModal modalState={interventionModalState} onClose={() => setInterventionModalState({ isOpen: false, intervention: null })} onSave={handleSaveIntervention} />
             <AddPaymentModal modalState={paymentModalState} onClose={() => setPaymentModalState({ isOpen: false, payment: null })} onSave={handleSavePayment} />
             <AddWaitingPatientModal modalState={waitingPatientModalState} onClose={() => setWaitingPatientModalState({ isOpen: false, patient: null })} onSave={handleSaveWaitingPatient} />
-            {/* <GeminiModal modalState={geminiModalState} onClose={() => setGeminiModalState({ isOpen: false, intervention: null })} /> */}
         </div>
     );
 };

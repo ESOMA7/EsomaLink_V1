@@ -13,13 +13,12 @@ export interface CalendarViewProps {
     isLoading: boolean;
     error: string | null;
     onSyncWithGoogle: () => void;
-    isReadyToSync: boolean;
     isAuthenticatedWithGoogle: boolean;
 }
 
 import { CheckCircle, RefreshCw } from 'lucide-react';
 
-const CalendarView: React.FC<CalendarViewProps> = ({ events, onSlotClick, onEventClick, onUpdateAppointmentDate, isLoading, error, onSyncWithGoogle, isReadyToSync, isAuthenticatedWithGoogle }) => {
+const CalendarView: React.FC<CalendarViewProps> = ({ events, onSlotClick, onEventClick, onUpdateAppointmentDate, isLoading, error, onSyncWithGoogle, isAuthenticatedWithGoogle }) => {
     const [currentDate, setCurrentDate] = useState(new Date(2025, 6, 2));
 
     const changeDate = (amount: number) => {
@@ -45,7 +44,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onSlotClick, onEven
                             <span>Sincronizado con Google</span>
                         </div>
                     ) : (
-                        <button onClick={onSyncWithGoogle} disabled={!isReadyToSync || isLoading} className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 space-x-2">
+                        <button onClick={onSyncWithGoogle} disabled={isLoading} className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 space-x-2">
                             {isLoading && <RefreshCw className="animate-spin" size={16} />}
                             <span>Sincronizar con Google</span>
                         </button>

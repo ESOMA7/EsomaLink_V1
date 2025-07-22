@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Calendar, LayoutDashboard, DollarSign, AlertTriangle, FolderKanban, Power, Settings, Sun, Moon, Bell, BellOff, BookText, ClipboardList } from 'lucide-react';
+import { Calendar, LayoutDashboard, DollarSign, AlertTriangle, Power, Settings, Sun, Moon, Bell, BellOff, BookText, ClipboardList } from 'lucide-react';
 import { View } from '../types';
 import { APP_LOGO_URL } from '../constants';
 
@@ -22,7 +22,6 @@ const navItems = [
     { id: 'interventions' as View, icon: AlertTriangle, label: 'Intervenciones' },
     { id: 'notes' as View, icon: BookText, label: 'Notas' },
     { id: 'waiting_patients' as View, icon: ClipboardList, label: 'Pacientes en Espera' },
-    { id: 'drive' as View, icon: FolderKanban, label: 'Google Drive' },
 ];
 
 const ToggleSwitch = ({ checked, onChange }: { checked: boolean, onChange: () => void }) => (

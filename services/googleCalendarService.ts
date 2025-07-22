@@ -20,22 +20,43 @@ let gapiInitialized = false;
 // Create a global promise that resolves when gapi is loaded
 if (!window.gapiLoadPromise) {
     window.gapiLoadPromise = new Promise<void>((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = 'https://apis.google.com/js/api.js';
-        script.async = true;
-        script.defer = true;
-        script.onload = () => {
-            window.gapi.load('client:auth2', () => {
-                window.gapiLoaded = true;
-                console.log('Google API script loaded and ready');
-                resolve();
-            });
+        // Load GAPI script
+        const gapiScript = document.createElement('script');
+        gapiScript.src = 'https://apis.google.com/js/api.js';
+        gapiScript.async = true;
+        gapiScript.defer = true;
+        
+        // Load Google Identity Services script
+        const gisScript = document.createElement('script');
+        gisScript.src = 'https://accounts.google.com/gsi/client';
+        gisScript.async = true;
+        gisScript.defer = true;
+        
+        let scriptsLoaded = 0;
+        const totalScripts = 2;
+        
+        const checkAllLoaded = () => {
+            scriptsLoaded++;
+            if (scriptsLoaded === totalScripts) {
+                // Load only the client library, not auth2
+                window.gapi.load('client', () => {
+                    window.gapiLoaded = true;
+                    console.log('Google API and GIS scripts loaded and ready');
+                    resolve();
+                });
+            }
         };
-        script.onerror = (error) => {
-            console.error('Failed to load Google API script');
-            reject(new Error('Failed to load Google API script'));
+        
+        gapiScript.onload = checkAllLoaded;
+        gisScript.onload = checkAllLoaded;
+        
+        gapiScript.onerror = gisScript.onerror = (error) => {
+            console.error('Failed to load Google scripts');
+            reject(new Error('Failed to load Google scripts'));
         };
-        document.body.appendChild(script);
+        
+        document.body.appendChild(gapiScript);
+        document.body.appendChild(gisScript);
     });
 }
 
@@ -63,9 +84,7 @@ export const initializeGapiClient = async (): Promise<void> => {
     try {
         await window.gapi.client.init({
             apiKey: GAPI_API_KEY,
-            clientId: GAPI_CLIENT_ID,
             discoveryDocs: [DISCOVERY_DOC],
-            scope: SCOPES,
         });
         
         console.log('Google API client initialized successfully');
@@ -77,28 +96,66 @@ export const initializeGapiClient = async (): Promise<void> => {
     }
 };
 
-export const initializeTokenClient = (onTokenResponse: (tokenResponse: any) => void) => {
-    if (!GAPI_CLIENT_ID) {
-        console.error("Google Client ID is not set.");
-        return;
+export const initializeTokenClient = (callback: (tokenResponse: any) => void) => {
+    console.log('Attempting to initialize Google Token Client...');
+    if (typeof window.google === 'undefined') {
+        console.error('GIS Error: window.google is not defined.');
+        throw new Error('Google API script not loaded.');
     }
-    if (!window.google) {
-        console.error("Google accounts service is not loaded.");
-        return;
+    if (typeof window.google.accounts === 'undefined') {
+        console.error('GIS Error: window.google.accounts is not defined.');
+        throw new Error('Google Identity Services not loaded.');
     }
-    tokenClient = window.google.accounts.oauth2.initTokenClient({
-        client_id: GAPI_CLIENT_ID,
-        scope: SCOPES,
-        callback: onTokenResponse,
-    });
+    if (typeof window.google.accounts.oauth2 === 'undefined') {
+        console.error('GIS Error: window.google.accounts.oauth2 is not defined.');
+        throw new Error('Google Token Client library not loaded.');
+    }
+    console.log('GIS object found. Initializing token client...');
+    try {
+        tokenClient = window.google.accounts.oauth2.initTokenClient({
+            client_id: GAPI_CLIENT_ID,
+            scope: SCOPES,
+            callback: callback,
+            error_callback: (error: any) => {
+                console.error('Token Client Initialization Error Callback:', error);
+                // Llama al callback principal con una estructura de error para notificar a la UI
+                callback({ error: 'initialization_failed', error_description: error.message || 'Failed to initialize token client' });
+            },
+        });
+        console.log('Google Token Client initialized successfully.');
+    } catch (error) {
+        console.error('Error during window.google.accounts.oauth2.initTokenClient:', error);
+        throw error;
+    }
 };
 
 export const requestAccessToken = () => {
-    tokenClient.requestAccessToken({ prompt: 'consent' });
+    if (!tokenClient) {
+        console.error('Token client not initialized');
+        return;
+    }
+    
+    console.log('Requesting Google Calendar access with scopes:', SCOPES);
+    console.log('Token client object before request:', tokenClient);
+    
+    // Solicitar acceso con prompt explícito para forzar pantalla de consentimiento
+    try {
+        tokenClient.requestAccessToken({ 
+            prompt: 'consent', // Forzar siempre la pantalla de consentimiento
+            include_granted_scopes: false // No incluir scopes ya otorgados para forzar la re-autorización
+        });
+    } catch (error) {
+        console.error('Error calling requestAccessToken:', error);
+    }
 };
 
-export const revokeAccessToken = (accessToken: string, onRevoke: () => void) => {
-    window.google.accounts.oauth2.revoke(accessToken, onRevoke);
+export const revokeGoogleToken = (accessToken: string, onRevoke: () => void) => {
+    if (window.google && window.google.accounts && window.google.accounts.oauth2) {
+        window.google.accounts.oauth2.revoke(accessToken, onRevoke);
+    } else {
+        console.error('Cannot revoke token: Google Identity Services not available.');
+        onRevoke(); // Call the callback anyway to not block the flow
+    }
 };
 
 export const listUpcomingEvents = async (calendarId: string = 'primary'): Promise<AppointmentEvent[]> => {
