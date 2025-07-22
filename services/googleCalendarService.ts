@@ -51,7 +51,7 @@ if (!window.gapiLoadPromise) {
         gisScript.onload = checkAllLoaded;
         
         gapiScript.onerror = gisScript.onerror = (error) => {
-            console.error('Failed to load Google scripts');
+            console.error('Failed to load Google scripts', error);
             reject(new Error('Failed to load Google scripts'));
         };
         
@@ -247,6 +247,19 @@ export const updateEventDateTime = async (calendarId: string, eventId: string, n
         return response.result;
     } catch (error) {
         console.error('Error updating event date/time:', error);
+        throw error;
+    }
+};
+
+export const deleteEvent = async (calendarId: string, eventId: string) => {
+    try {
+        const response = await window.gapi.client.calendar.events.delete({
+            calendarId: calendarId,
+            eventId: eventId,
+        });
+        return response;
+    } catch (error) {
+        console.error('Error deleting event:', error);
         throw error;
     }
 };

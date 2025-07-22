@@ -14,9 +14,11 @@ import AddInterventionModal from './components/ui/AddInterventionModal';
 import AddPaymentModal from './components/ui/AddPaymentModal';
 import AddWaitingPatientModal from './components/ui/AddWaitingPatientModal';
 import { useAuth, useInterventions, usePayments, useNotes, useWaitingPatients } from '@/hooks';
+import { useAppointmentsContext } from './contexts/AppointmentsContext';
 import { Intervention, Payment, WaitingPatient, View } from './types';
 import { Toaster, toast } from 'react-hot-toast';
 import { LoaderCircle } from 'lucide-react';
+
 
 const App: React.FC = () => {
         const { isAuthenticated, isAuthLoading, authError, setAuthError, loginWithGoogle, logout: supabaseLogout } = useAuth();
@@ -35,6 +37,7 @@ const App: React.FC = () => {
     const { payments, isLoading: loadingPayments, error: errorPayments, savePayment, deletePayment, fetchPayments } = usePayments();
     const { notes, isLoading: loadingNotes, error: errorNotes, saveNote, deleteNote } = useNotes();
     const { waitingPatients, isLoading: loadingWaitingPatients, error: errorWaitingPatients, saveWaitingPatient, updateWaitingPatient, deleteWaitingPatient, fetchWaitingPatients } = useWaitingPatients();
+    const { events: appointments, isLoading: loadingAppointments, error: errorAppointments } = useAppointmentsContext();
 
 
     const [interventionModalState, setInterventionModalState] = useState<{ isOpen: boolean; intervention: Intervention | null; }>({ isOpen: false, intervention: null });

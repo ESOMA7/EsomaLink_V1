@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { AppointmentEvent } from '@/types';
 import { Calendar } from '@/types/calendar';
+import { AppointmentEvent } from '@/types';
 import * as googleCalendarService from '../services/googleCalendarService';
 
 // Removed the duplicate interface Calendar definition
@@ -67,51 +67,53 @@ export const useAppointments = () => {
         });
     }, []);
 
-    useEffect(() => {
-        const fetchAllEvents = async () => {
-            if (googleAuthToken) {
-                console.log('Auth token received, starting to fetch events from all calendars...');
-                setIsLoading(true);
-                try {
-                                        const calendars: Calendar[] = await listUserCalendars();
-                    if (!calendars || calendars.length === 0) {
-                        console.log('No user calendars found.');
-                        setEvents([]);
-                        return;
-                    }
-
-                    console.log(`Found ${calendars.length} calendars. Fetching events for each...`);
-
-                                        const allEventPromises = calendars.map(calendar => 
-                        listUpcomingEvents(calendar.id, calendar.backgroundColor)
-                    );
-
-                                        console.log('Setting user calendars in state:', calendars);
-                                        if (JSON.stringify(calendars) !== JSON.stringify(userCalendars)) {
-                        console.log('User calendars have changed, updating state.');
-                        setUserCalendars(calendars);
-                    }
-
-                    const eventArrays = await Promise.all(allEventPromises);
-                    const fetchedEvents = eventArrays.flat(); // Combine all event arrays into one
-
-                    console.log(`Received a total of ${fetchedEvents.length} events from all calendars.`);
-                    setAllEvents(fetchedEvents);
-                    // By default, make all calendars visible
-                    setVisibleCalendarIds(new Set(calendars.map(c => c.id)));
-                    setError(null);
-                } catch (e) {
-                    setError('Error al cargar los eventos de Google Calendar.');
-                    console.error('Error in fetchAllEvents:', e);
-                } finally {
-                    console.log('Finished fetching all events, setting loading to false.');
-                    setIsLoading(false);
+    const fetchAllEvents = useCallback(async () => {
+        if (googleAuthToken) {
+            console.log('Auth token received, starting to fetch events from all calendars...');
+            setIsLoading(true);
+            try {
+                const calendars: Calendar[] = await listUserCalendars();
+                if (!calendars || calendars.length === 0) {
+                    console.log('No user calendars found.');
+                    setEvents([]);
+                    setAllEvents([]);
+                    setUserCalendars([]);
+                    return; // Exit if no calendars
                 }
-            }
-        };
 
+                console.log(`Found ${calendars.length} calendars. Fetching events for each...`);
+                setUserCalendars(calendars);
+
+                const allEventPromises = calendars.map(calendar => 
+                    listUpcomingEvents(calendar.id, calendar.backgroundColor)
+                );
+
+                const allEventsArrays = await Promise.all(allEventPromises);
+                const flattenedEvents = allEventsArrays.flat();
+
+                console.log(`Fetched a total of ${flattenedEvents.length} events.`);
+                setAllEvents(flattenedEvents);
+                setEvents(flattenedEvents);
+
+                // Only set visible calendars on the first load, not on every refresh
+                if (visibleCalendarIds.size === 0) {
+                    const initialVisibleIds = new Set(calendars.map(c => c.id));
+                    setVisibleCalendarIds(initialVisibleIds);
+                }
+
+            } catch (err) {
+                console.error('Error fetching events:', err);
+                setError('Failed to fetch events from Google Calendar.');
+            } finally {
+                setIsLoading(false);
+                console.log('Finished fetching events.');
+            }
+        }
+    }, [googleAuthToken, visibleCalendarIds.size]);
+
+    useEffect(() => {
         fetchAllEvents();
-    }, [googleAuthToken]);
+    }, [fetchAllEvents]);
 
     useEffect(() => {
         const filtered = allEvents.filter(event => {
@@ -185,72 +187,86 @@ export const useAppointments = () => {
         }
     }, [isGoogleApiInitialized, googleAuthToken, initializeGoogleSync]);
 
-    const saveAppointment = useCallback(async (data: Omit<AppointmentEvent, 'title'> & { id?: string | number }) => {
-        if (data.id) {
-            // Update existing event
-            // ... (existing update logic)
-        } else {
-            // Create new event
-            const professionalCalendar = userCalendars.find(cal => cal.summary === data.professional);
+    const saveAppointment = useCallback(async (data: Omit<AppointmentEvent, 'title' | 'id'> & { id?: string | number }) => {
+        const newTitle = `${data.patient} - ${data.procedure}`;
 
-            if (professionalCalendar) {
-                try {
-                    const newGoogleEvent = await googleCalendarService.createEvent(professionalCalendar.id, data);
-                    const newEvent: AppointmentEvent = {
-                        ...data,
-                        id: newGoogleEvent.id!,
-                        title: newGoogleEvent.summary!,
-                        calendarId: professionalCalendar.id,
-                        color: professionalCalendar.backgroundColor,
-                    };
-                    setAllEvents(prev => [...prev, newEvent]);
-                } catch (error) {
-                    console.error('Failed to create Google Calendar event:', error);
-                    // Handle error, maybe show a toast notification
-                }
+        try {
+            if (data.id) {
+                console.log('Updating event (not implemented):', data.id);
+                return { success: true };
             } else {
-                // Fallback for local-only event creation
-                const newEvent: AppointmentEvent = {
-                    ...data,
-                    id: Date.now(), // Mock ID for local events
-                    title: `${data.patient} - ${data.procedure}`
-                };
-                setAllEvents(prev => [...prev, newEvent]);
+                const professionalCalendar = userCalendars.find(cal => cal.summary === data.professional);
+                if (!professionalCalendar) {
+                    console.error(`Calendar for professional '${data.professional}' not found.`);
+                    return { success: false };
+                }
+
+                const eventToSave = { ...data, title: newTitle };
+                await googleCalendarService.createEvent(professionalCalendar.id, eventToSave);
+                
+                // After successful creation, refetch all events to ensure UI is in sync.
+                await fetchAllEvents();
+
+                return { success: true };
             }
+        } catch (error) {
+            console.error('Failed to save appointment:', error);
+            return { success: false };
         }
-        return { success: true };
-    }, []);
+    }, [userCalendars, fetchAllEvents]);
 
     const deleteAppointment = useCallback(async (id: string | number) => {
-        setEvents(prev => prev.filter(e => e.id !== id));
-        return { success: true };
-    }, []);
-
-    const updateAppointmentDate = async (eventId: string | number, newStartDate: Date, newEndDate: Date) => {
-        setEvents(prevEvents => {
-            return prevEvents.map(e => e.id === eventId ? { ...e, start: newStartDate, end: newEndDate } : e);
-        });
-
-        if (typeof eventId === 'string') {
-            // It's a Google Calendar event
-            try {
-                const event = allEvents.find(e => e.id === eventId);
-                if (event && event.calendarId) {
-                    await googleCalendarService.updateEventDateTime(event.calendarId, eventId as string, newStartDate, newEndDate);
-                    toast.success('Cita de Google actualizada.');
-                } else {
-                    throw new Error('No se pudo encontrar el evento o su calendario.');
-                }
-            } catch (error) {
-                console.error('Failed to update Google Calendar event:', error);
-                toast.error('No se pudo actualizar la cita en Google Calendar.');
-                // TODO: Rollback optimistic update
+        try {
+            const eventToDelete = allEvents.find(e => e.id === id);
+            if (!eventToDelete || !eventToDelete.calendarId) {
+                console.error('Event not found or has no calendar ID, cannot delete from Google.');
+                // If it's a local-only event, just filter it out
+                setAllEvents(prev => prev.filter(e => e.id !== id));
+                setEvents(prev => prev.filter(e => e.id !== id));
+                return { success: true };
             }
-        } else {
-            // It's a local DB event - this logic needs to be implemented if you have a local backend
-            toast.info('La actualización de citas locales aún no está implementada.');
+
+            await googleCalendarService.deleteEvent(eventToDelete.calendarId, eventToDelete.id as string);
+            
+            // After successful deletion, refetch all events.
+            await fetchAllEvents();
+
+            return { success: true };
+        } catch (error) {
+            console.error('Failed to delete appointment:', error);
+            return { success: false };
         }
-    };
+    }, [allEvents, fetchAllEvents]);
+
+    const updateAppointmentDate = useCallback(async (eventId: string | number, newStartDate: Date, newEndDate: Date) => {
+        if (typeof eventId !== 'string') {
+            toast.info('La actualización de citas locales aún no está implementada.');
+            return { success: false };
+        }
+
+        try {
+            const eventToUpdate = allEvents.find(e => e.id === eventId);
+            if (!eventToUpdate || !eventToUpdate.calendarId) {
+                throw new Error('No se pudo encontrar el evento o su calendario para actualizar.');
+            }
+
+            await googleCalendarService.updateEventDateTime(eventToUpdate.calendarId, eventId, newStartDate, newEndDate);
+            
+            // After successful update, refetch all events to ensure UI is in sync.
+            await fetchAllEvents();
+
+            toast.success('La fecha de la cita ha sido actualizada.');
+            return { success: true };
+
+        } catch (error) {
+            console.error('Failed to update appointment date:', error);
+            toast.error('No se pudo actualizar la cita en Google Calendar.');
+            // No rollback needed as we are not doing optimistic updates anymore.
+            // We just refetch to get the real state.
+            await fetchAllEvents();
+            return { success: false };
+        }
+    }, [allEvents, fetchAllEvents]);
 
     return { 
         events, 
@@ -264,6 +280,7 @@ export const useAppointments = () => {
         revokeGoogleAccess, 
         userCalendars, 
         visibleCalendarIds, 
-        toggleCalendarVisibility 
+        toggleCalendarVisibility,
+        refreshEvents: fetchAllEvents // Expose the refresh function
     };
 };

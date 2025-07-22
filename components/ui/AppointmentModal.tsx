@@ -1,17 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Calendar, Trash2, X } from 'lucide-react';
-import { AppointmentEvent } from '../../types';
+import { AppointmentEvent } from '@/types';
 import { Calendar as CalendarType } from '../../types/calendar';
 
 interface AppointmentModalProps {
     modalState: {
         isOpen: boolean;
-        event: AppointmentEvent | null;
+        event?: AppointmentEvent | null;
         date: Date | null;
     };
     onClose: () => void;
-        onSave: (data: Omit<AppointmentEvent, 'title'> & { id?: string | number }) => void;
-            onDelete: (id: string | number, title: string) => void;
+    onSave: (data: Omit<AppointmentEvent, 'title' | 'id'> & { id?: string | number }) => Promise<{ success: boolean }>;
+    onDelete: (id: string | number, title: string) => void;
     calendars: CalendarType[];
 }
 
@@ -19,7 +19,7 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ modalState, onClose
     const { isOpen, event, date } = modalState;
     const [patient, setPatient] = useState('');
     const [procedure, setProcedure] = useState('');
-                const [professional, setProfessional] = useState('');
+    const [professional, setProfessional] = useState('');
     const [eventDate, setEventDate] = useState(new Date());
     const [eventStartTime, setEventStartTime] = useState('09:00');
     const [eventEndTime, setEventEndTime] = useState('10:00');
@@ -37,7 +37,7 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ modalState, onClose
             // Reset fields for new appointment
             setPatient('');
             setProcedure('');
-                        setProfessional('');
+            setProfessional(calendars[0]?.summary || '');
             
             // Set date and time
             setEventDate(new Date(date));
@@ -52,7 +52,7 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ modalState, onClose
     }, [event, date]);
 
         // Save the appointment
-    const handleSave = useCallback((e: React.FormEvent) => {
+    const handleSave = useCallback(async (e: React.FormEvent) => {
         e.preventDefault();
         const [startHours, startMinutes] = eventStartTime.split(':');
         const start = new Date(eventDate);
@@ -67,7 +67,7 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ modalState, onClose
             return;
         }
 
-                const eventData: Omit<AppointmentEvent, 'title'> & { id?: string | number } = { 
+                const eventData: Omit<AppointmentEvent, 'title' | 'id'> & { id?: string | number } = { 
             id: event?.id, // undefined for new event
             patient, 
             procedure, 
@@ -77,7 +77,10 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ modalState, onClose
             whatsapp: event?.whatsapp || '',
             estado: event?.estado || 'confirmed'
         };
-        onSave(eventData);
+        const result = await onSave(eventData);
+        if (result.success) {
+            onClose(); // Cierra el modal si se guarda con éxito
+        }
     }, [event?.id, patient, procedure, professional, eventDate, eventStartTime, eventEndTime, onSave]);
     
     if (!isOpen) return null;
