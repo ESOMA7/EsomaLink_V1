@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { AppointmentEvent, Intervention, Payment, View } from '../../types';
+import { AppointmentEvent, Intervention, Payment, View, UserCalendar } from '../../types';
 import { Calendar, AlertTriangle, DollarSign, CheckCircle } from 'lucide-react';
 import InfoCard from '../ui/InfoCard';
 import { DashboardViewSkeleton } from '../ui/LoadingSkeletons';
@@ -10,14 +10,14 @@ interface DashboardViewProps {
     interventions: Intervention[];
     payments: Payment[];
     appointments: AppointmentEvent[];
+    userCalendars: UserCalendar[];
     setCurrentView: (view: View) => void;
     isLoading: boolean;
     error: string | null;
-    newInterventionAvailable: boolean;
     onTestNewIntervention: () => void;
 }
 
-const DashboardView: React.FC<DashboardViewProps> = ({ interventions, payments, appointments, setCurrentView, isLoading, error, newInterventionAvailable, onTestNewIntervention }) => {
+const DashboardView: React.FC<DashboardViewProps> = ({ interventions, payments, appointments, userCalendars, setCurrentView, isLoading, error, onTestNewIntervention }) => {
     // Use a mock date consistent with the demo data to ensure the dashboard reflects the correct state.
     if (isLoading) {
         return <DashboardViewSkeleton />;
@@ -92,7 +92,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({ interventions, payments, 
                     subtitle={interventionsSubtitle}
                     color={interventionsColor}
                     onClick={() => setCurrentView('interventions')}
-                    newInterventionAvailable={newInterventionAvailable} // Propagamos la nueva prop
                 />
                 <InfoCard 
                     icon={DollarSign}
@@ -116,7 +115,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ interventions, payments, 
                             <div className="flex justify-between items-center">
                                 <div>
                                     <p className="font-semibold text-slate-800 dark:text-slate-100">{app.patient} - <span className="font-normal">{app.procedure}</span></p>
-                                    <p className="text-sm text-slate-500 dark:text-slate-400">Responsable: {app.professional}</p>
+                                    <p className="text-sm text-slate-500 dark:text-slate-400">Responsable: {userCalendars.find(c => c.id === app.calendarId)?.summary || app.professional}</p>
                                 </div>
                                 <div className="text-right">
                                     <p className="font-medium text-slate-700 dark:text-slate-300">{app.start.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}</p>

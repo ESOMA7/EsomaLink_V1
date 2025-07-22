@@ -136,14 +136,14 @@ export const useAppointments = () => {
     }, [allEvents, userCalendars, visibleCalendarIds]);
 
     const toggleCalendarVisibility = useCallback((calendarId: string) => {
-        setVisibleCalendarIds(prev => {
-            const newSet = new Set(prev);
-            if (newSet.has(calendarId)) {
-                newSet.delete(calendarId);
+        setVisibleCalendarIds(prevVisibleIds => {
+            const newVisibleIds = new Set(prevVisibleIds);
+            if (newVisibleIds.has(calendarId)) {
+                newVisibleIds.delete(calendarId);
             } else {
-                newSet.add(calendarId);
+                newVisibleIds.add(calendarId);
             }
-            return newSet;
+            return newVisibleIds;
         });
     }, []);
 

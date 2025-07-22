@@ -53,6 +53,15 @@ export interface Note {
 
 export type View = 'dashboard' | 'calendar' | 'payments' | 'interventions' | 'drive' | 'notes' | 'waiting_patients' | 'settings';
 
+export interface UserCalendar {
+    id: string;
+    summary: string;
+    backgroundColor: string;
+    foregroundColor?: string;
+    primary?: boolean;
+    accessRole?: string;
+}
+
 export interface WaitingPatient {
   id: number;
   nombre: string;

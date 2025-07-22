@@ -8,8 +8,6 @@ import InterventionsView from './components/views/InterventionsView';
 import NotesView from './components/views/NotesView';
 import WaitingPatientsView from './components/views/WaitingPatientsView';
 import ConfirmationModal from './components/ui/ConfirmationModal';
-
-// import GeminiModal from './components/ui/GeminiModal';
 import AddInterventionModal from './components/ui/AddInterventionModal';
 import AddPaymentModal from './components/ui/AddPaymentModal';
 import AddWaitingPatientModal from './components/ui/AddWaitingPatientModal';
@@ -19,26 +17,26 @@ import { Intervention, Payment, WaitingPatient, View } from './types';
 import { Toaster, toast } from 'react-hot-toast';
 import { LoaderCircle } from 'lucide-react';
 
-
 const App: React.FC = () => {
-        const { isAuthenticated, isAuthLoading, authError, setAuthError, loginWithGoogle, logout: supabaseLogout } = useAuth();
-
+    const { isAuthenticated, isAuthLoading, authError, setAuthError, loginWithGoogle, logout: supabaseLogout } = useAuth();
 
     const [currentView, setCurrentView] = useState<View>('dashboard');
     const [theme, setTheme] = useState<'light' | 'dark'>(() => (localStorage.getItem('theme') as 'light' | 'dark') || 'light');
     const [areNotificationsEnabled, setAreNotificationsEnabled] = useState(() => localStorage.getItem('notifications') === 'true');
-    const [hasNewIntervention, setHasNewIntervention] = useState(false);
+    const [tempInterventions, setTempInterventions] = useState<Intervention[]>([]);
 
     const onNewIntervention = useCallback(() => {
-        setHasNewIntervention(true);
+        // This callback is kept for the subscription, but doesn't need to set state anymore.
     }, []);
 
-    const { interventions, isLoading: loadingInterventions, error: errorInterventions, saveIntervention, deleteIntervention, deleteMultipleInterventions, updateInterventionStatus, fetchInterventions } = useInterventions({ onNewIntervention });
+    const { interventions: dbInterventions, isLoading: loadingInterventions, error: errorInterventions, saveIntervention, deleteIntervention, deleteMultipleInterventions, updateInterventionStatus, fetchInterventions } = useInterventions({ onNewIntervention });
+    const interventions = [...tempInterventions, ...dbInterventions];
     const { payments, isLoading: loadingPayments, error: errorPayments, savePayment, deletePayment, fetchPayments } = usePayments();
     const { notes, isLoading: loadingNotes, error: errorNotes, saveNote, deleteNote } = useNotes();
     const { waitingPatients, isLoading: loadingWaitingPatients, error: errorWaitingPatients, saveWaitingPatient, updateWaitingPatient, deleteWaitingPatient, fetchWaitingPatients } = useWaitingPatients();
-    const { events: appointments, isLoading: loadingAppointments, error: errorAppointments } = useAppointmentsContext();
+    const { events: appointments, isLoading: loadingAppointments, error: errorAppointments, userCalendars } = useAppointmentsContext();
 
+    const hasPendingInterventions = interventions.some(i => i.estado === 'Pendiente');
 
     const [interventionModalState, setInterventionModalState] = useState<{ isOpen: boolean; intervention: Intervention | null; }>({ isOpen: false, intervention: null });
     const [paymentModalState, setPaymentModalState] = useState<{ isOpen: boolean; payment: Payment | null; }>({ isOpen: false, payment: null });
@@ -63,7 +61,6 @@ const App: React.FC = () => {
             title: 'Cerrar Sesión',
             message: '¿Estás seguro de que deseas cerrar sesión?',
             onConfirm: async () => {
-                // Note: Google token revocation is now handled inside useAppointments
                 await supabaseLogout();
                 setConfirmationModalState({ isOpen: false, title: '', message: '', onConfirm: null });
             }
@@ -75,38 +72,57 @@ const App: React.FC = () => {
         setInterventionModalState({ isOpen: false, intervention: null });
     };
 
-    const handleDeleteIntervention = (id: number, nombre: string) => {
+    const handleDeleteIntervention = (interventionId: number) => {
+        const onConfirmDelete = async () => {
+            if (interventionId < 0) {
+                setTempInterventions(prev => prev.filter(i => i.id !== interventionId));
+                toast.success('Intervención de prueba eliminada.');
+                return;
+            }
+            try {
+                await deleteIntervention(interventionId);
+                toast.success('Intervención eliminada con éxito.');
+            } catch (error) {
+                toast.error('Error al eliminar la intervención.');
+            }
+        };
+
         setConfirmationModalState({
             isOpen: true,
-            title: `Eliminar Intervención: ${nombre}`,
-            message: '¿Estás seguro de que deseas eliminar esta intervención? Esta acción no se puede deshacer.',
-            onConfirm: async () => {
-                try {
-                    await deleteIntervention(id);
-                    if (areNotificationsEnabled) toast.success('Intervención eliminada con éxito.');
-                } catch (error) {
-                    if (areNotificationsEnabled) toast.error('Error al eliminar la intervención.');
-                }
-                setConfirmationModalState({ isOpen: false, title: '', message: '', onConfirm: null });
-            }
+            title: 'Confirmar Eliminación',
+            message: '¿Estás seguro de que deseas eliminar esta intervención?',
+            onConfirm: onConfirmDelete,
         });
     };
 
-    const handleDeleteSelectedInterventions = () => {
+    const confirmDeleteSelectedInterventions = () => {
+        const onConfirmDelete = async () => {
+            const tempIds = selectedInterventionIds.filter(id => id < 0);
+            const dbIds = selectedInterventionIds.filter(id => id >= 0);
+
+            if (tempIds.length > 0) {
+                setTempInterventions(prev => prev.filter(i => !tempIds.includes(i.id)));
+            }
+
+            if (dbIds.length > 0) {
+                try {
+                    await deleteMultipleInterventions(dbIds);
+                } catch (error) {
+                    toast.error('Error al eliminar las intervenciones de la base de datos.');
+                    return; // Stop if DB deletion fails
+                }
+            }
+
+            toast.success(`${selectedInterventionIds.length} intervenciones eliminadas.`);
+            setSelectedInterventionIds([]);
+            setConfirmationModalState({ isOpen: false, title: '', message: '', onConfirm: null });
+        };
+
         setConfirmationModalState({
             isOpen: true,
-            title: 'Eliminar Intervenciones Seleccionadas',
-            message: `¿Estás seguro de que deseas eliminar ${selectedInterventionIds.length} intervenciones? Esta acción no se puede deshacer.`,
-            onConfirm: async () => {
-                try {
-                    await deleteMultipleInterventions(selectedInterventionIds);
-                    if (areNotificationsEnabled) toast.success('Intervenciones eliminadas con éxito.');
-                    setSelectedInterventionIds([]);
-                } catch (error) {
-                    if (areNotificationsEnabled) toast.error('Error al eliminar las intervenciones.');
-                }
-                setConfirmationModalState({ isOpen: false, title: '', message: '', onConfirm: null });
-            }
+            title: 'Confirmar Eliminación Múltiple',
+            message: `¿Seguro que quieres eliminar ${selectedInterventionIds.length} intervenciones?`,
+            onConfirm: onConfirmDelete,
         });
     };
 
@@ -123,9 +139,9 @@ const App: React.FC = () => {
             onConfirm: async () => {
                 try {
                     await deletePayment(id);
-                    if (areNotificationsEnabled) toast.success('Pago eliminado con éxito.');
+                    toast.success('Pago eliminado con éxito.');
                 } catch (error) {
-                    if (areNotificationsEnabled) toast.error('Error al eliminar el pago.');
+                    toast.error('Error al eliminar el pago.');
                 }
                 setConfirmationModalState({ isOpen: false, title: '', message: '', onConfirm: null });
             }
@@ -140,9 +156,9 @@ const App: React.FC = () => {
             onConfirm: async () => {
                 try {
                     await deleteNote(id);
-                    if (areNotificationsEnabled) toast.success('Nota eliminada con éxito.');
+                    toast.success('Nota eliminada con éxito.');
                 } catch (error) {
-                    if (areNotificationsEnabled) toast.error('Error al eliminar la nota.');
+                    toast.error('Error al eliminar la nota.');
                 }
                 setConfirmationModalState({ isOpen: false, title: '', message: '', onConfirm: null });
             }
@@ -158,13 +174,13 @@ const App: React.FC = () => {
         setConfirmationModalState({
             isOpen: true,
             title: `Eliminar Paciente en Espera: ${nombre}`,
-            message: '¿Estás seguro de que deseas eliminar este paciente de la lista de espera? Esta acción no se puede deshacer.',
+            message: '¿Estás seguro de que deseas eliminar este paciente de la lista de espera?',
             onConfirm: async () => {
                 try {
                     await deleteWaitingPatient(id);
-                    if (areNotificationsEnabled) toast.success('Paciente en espera eliminado con éxito.');
+                    toast.success('Paciente en espera eliminado con éxito.');
                 } catch (error) {
-                    if (areNotificationsEnabled) toast.error('Error al eliminar el paciente en espera.');
+                    toast.error('Error al eliminar el paciente en espera.');
                 }
                 setConfirmationModalState({ isOpen: false, title: '', message: '', onConfirm: null });
             }
@@ -176,30 +192,36 @@ const App: React.FC = () => {
     };
 
     const handleTestNewIntervention = () => {
-        toast((t) => (
-            <span className="flex items-center">
-                Esta es una notificación de prueba para una nueva intervención.
-                <button 
-                    className="ml-4 px-3 py-1 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                    onClick={() => {
-                        setCurrentView('interventions');
-                        toast.dismiss(t.id);
-                    }}
-                >
-                    Ver
-                </button>
-            </span>
-        ));
+        if (areNotificationsEnabled) {
+            toast.success('¡Nueva intervención de prueba recibida!', { icon: '🔔' });
+            const audio = new Audio('/notification.mp3');
+            audio.play().catch(error => {
+                console.warn('No se pudo reproducir el sonido de notificación automáticamente:', error);
+            });
+        }
+
+        const fakeIntervention: Intervention = {
+            id: Math.random() * -1,
+            created_at: new Date().toISOString(),
+            nombre: 'Paciente de Prueba (Ficticio)',
+            caso: 'Esta es una intervención de prueba generada por el botón.',
+            estado: 'Pendiente',
+            fecha: new Date().toLocaleDateString('es-CO'),
+            updated_at: new Date().toISOString(),
+            numeros: 'N/A'
+        };
+
+        setTempInterventions(prev => [fakeIntervention, ...prev]);
     };
 
     const renderView = () => {
         switch (currentView) {
             case 'dashboard':
-                                                return <DashboardView setCurrentView={setCurrentView} interventions={interventions} payments={payments} appointments={appointments} isLoading={loadingAppointments || loadingInterventions || loadingPayments} error={errorAppointments || errorInterventions || errorPayments} newInterventionAvailable={hasNewIntervention} onTestNewIntervention={handleTestNewIntervention} />;
+                return <DashboardView setCurrentView={setCurrentView} interventions={interventions} payments={payments} appointments={appointments} userCalendars={userCalendars} isLoading={loadingAppointments || loadingInterventions || loadingPayments} error={errorAppointments || errorInterventions || errorPayments} onTestNewIntervention={handleTestNewIntervention} />;
             case 'calendar':
                 return <CalendarView />;
             case 'interventions':
-                return <InterventionsView interventions={interventions} onUpdateStatus={updateInterventionStatus} onDelete={handleDeleteIntervention} onGenerateResponse={handleGenerateResponse} onAdd={() => setInterventionModalState({ isOpen: true, intervention: null })} onEdit={(intervention) => setInterventionModalState({ isOpen: true, intervention })} isLoading={loadingInterventions} error={errorInterventions ? new Error(errorInterventions) : null} selectedIds={selectedInterventionIds} onSelectionChange={setSelectedInterventionIds} onDeleteSelected={handleDeleteSelectedInterventions} fetchInterventions={fetchInterventions} />;
+                return <InterventionsView interventions={interventions} onUpdateStatus={updateInterventionStatus} onDelete={handleDeleteIntervention} onGenerateResponse={handleGenerateResponse} onAdd={() => setInterventionModalState({ isOpen: true, intervention: null })} onEdit={(intervention) => setInterventionModalState({ isOpen: true, intervention })} isLoading={loadingInterventions} error={errorInterventions ? new Error(errorInterventions) : null} selectedIds={selectedInterventionIds} onSelectionChange={setSelectedInterventionIds} onDeleteSelected={confirmDeleteSelectedInterventions} fetchInterventions={fetchInterventions} />;
             case 'payments':
                 return <PaymentsView payments={payments} onDelete={handleDeletePayment} onAdd={() => setPaymentModalState({ isOpen: true, payment: null })} onEdit={(payment) => setPaymentModalState({ isOpen: true, payment })} isLoading={loadingPayments} error={errorPayments} fetchPayments={fetchPayments} />;
             case 'notes':
@@ -209,7 +231,7 @@ const App: React.FC = () => {
             case 'settings':
                 return <div>Settings View</div>;
             default:
-                return <DashboardView setCurrentView={setCurrentView} interventions={interventions} payments={payments} appointments={appointments} isLoading={loadingAppointments || loadingInterventions || loadingPayments} error={errorAppointments || errorInterventions || errorPayments} newInterventionAvailable={hasNewIntervention} onTestNewIntervention={handleTestNewIntervention} />;
+                return <DashboardView setCurrentView={setCurrentView} interventions={interventions} payments={payments} appointments={appointments} userCalendars={userCalendars} isLoading={loadingAppointments || loadingInterventions || loadingPayments} error={errorAppointments || errorInterventions || errorPayments} onTestNewIntervention={handleTestNewIntervention} />;
         }
     };
 
@@ -224,6 +246,7 @@ const App: React.FC = () => {
     return (
         <div className="flex h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-50">
             <Toaster position="top-center" reverseOrder={false} />
+            <ConfirmationModal modalState={confirmationModalState} setModalState={setConfirmationModalState} />
             <Sidebar
                 currentView={currentView}
                 setCurrentView={setCurrentView}
@@ -232,15 +255,13 @@ const App: React.FC = () => {
                 onToggleTheme={() => setTheme(theme === 'light' ? 'dark' : 'light')}
                 areNotificationsEnabled={areNotificationsEnabled}
                 onToggleNotifications={() => setAreNotificationsEnabled(!areNotificationsEnabled)}
-                newInterventionAvailable={hasNewIntervention}
+                newInterventionAvailable={hasPendingInterventions}
             />
             <main className="flex-1 p-6 overflow-auto">
                 {renderView()}
             </main>
 
             {/* Modals */}
-            <ConfirmationModal modalState={confirmationModalState} setModalState={setConfirmationModalState} />
-            
             <AddInterventionModal modalState={interventionModalState} onClose={() => setInterventionModalState({ isOpen: false, intervention: null })} onSave={handleSaveIntervention} />
             <AddPaymentModal modalState={paymentModalState} onClose={() => setPaymentModalState({ isOpen: false, payment: null })} onSave={handleSavePayment} />
             <AddWaitingPatientModal modalState={waitingPatientModalState} onClose={() => setWaitingPatientModalState({ isOpen: false, patient: null })} onSave={handleSaveWaitingPatient} />

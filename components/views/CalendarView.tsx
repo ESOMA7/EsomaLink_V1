@@ -35,6 +35,10 @@ const CalendarView: React.FC = () => {
     const [isSidebarVisible, setIsSidebarVisible] = useState(false);
     const [selectedDate, setSelectedDate] = useState(currentDate);
 
+    const filteredEvents = events.filter(event => 
+        event.calendarId && visibleCalendarIds.has(event.calendarId)
+    );
+
     const changeDate = (amount: number) => {
         setCurrentDate(prev => {
             const newDate = new Date(prev);
@@ -69,8 +73,13 @@ const CalendarView: React.FC = () => {
         setAppointmentModalState({ isOpen: true, event: null, date });
     };
 
-    const handleEventClick = (event: any) => {
-        setAppointmentModalState({ isOpen: true, event, date: event.start });
+    const handleEventClick = (event: AppointmentEvent) => {
+        const calendar = userCalendars.find(cal => cal.id === event.calendarId);
+        const eventWithCorrectProfessional = {
+            ...event,
+            professional: calendar ? calendar.summary : event.professional,
+        };
+        setAppointmentModalState({ isOpen: true, event: eventWithCorrectProfessional, date: event.start });
     };
 
     const handleSaveAppointment = async (data: Omit<AppointmentEvent, 'title' | 'id'> & { id?: string | number }) => {
@@ -162,14 +171,14 @@ const CalendarView: React.FC = () => {
                                 {currentView === 'month' ? (
                                     <MonthView 
                                         currentDate={currentDate} 
-                                        events={events}
+                                        events={filteredEvents}
                                         onDayClick={handleSlotClick}
                                         onEventClick={handleEventClick}
                                     />
                                 ) : (
                                     <WeekView
                                         currentDate={currentDate}
-                                        events={events}
+                                        events={filteredEvents}
                                         onEventClick={handleEventClick}
                                         onUpdateAppointmentDate={updateAppointmentDate}
                                         onSlotClick={handleSlotClick}

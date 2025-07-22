@@ -143,7 +143,7 @@ const WeekView: React.FC<WeekViewProps> = ({ currentDate, events, onEventClick, 
 
                             return (
                                 <div
-                                    key={event.id}
+                                    key={`${event.id}-${new Date(event.start).toISOString()}`}
                                     draggable
                                     onDragStart={(e) => {
                                         e.stopPropagation();
