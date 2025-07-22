@@ -115,8 +115,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ interventions, payments, 
                             </span>
                             <div className="flex justify-between items-center">
                                 <div>
-                                    <p className="font-semibold text-slate-800 dark:text-slate-100">{app.title}</p>
-                                    <p className="text-sm text-slate-500 dark:text-slate-400">{app.professional}</p>
+                                    <p className="font-semibold text-slate-800 dark:text-slate-100">{app.patient} - <span className="font-normal">{app.procedure}</span></p>
+                                    <p className="text-sm text-slate-500 dark:text-slate-400">Responsable: {app.professional}</p>
                                 </div>
                                 <div className="text-right">
                                     <p className="font-medium text-slate-700 dark:text-slate-300">{app.start.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}</p>

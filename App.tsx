@@ -195,7 +195,7 @@ const App: React.FC = () => {
     const renderView = () => {
         switch (currentView) {
             case 'dashboard':
-                                                return <DashboardView setCurrentView={setCurrentView} interventions={interventions} payments={payments} appointments={[]} isLoading={loadingInterventions || loadingPayments} error={errorInterventions || errorPayments} newInterventionAvailable={hasNewIntervention} onTestNewIntervention={handleTestNewIntervention} />;
+                                                return <DashboardView setCurrentView={setCurrentView} interventions={interventions} payments={payments} appointments={appointments} isLoading={loadingAppointments || loadingInterventions || loadingPayments} error={errorAppointments || errorInterventions || errorPayments} newInterventionAvailable={hasNewIntervention} onTestNewIntervention={handleTestNewIntervention} />;
             case 'calendar':
                 return <CalendarView />;
             case 'interventions':
