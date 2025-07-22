@@ -10,6 +10,12 @@ declare global {
   };
 
   const Toaster: React.ComponentType<any>;
+
+  interface Window {
+    gapi: any;
+    google: any;
+    onGapiLoad: () => void;
+  }
 }
 
 export {};

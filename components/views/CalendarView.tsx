@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { AppointmentEvent } from '../../types';
@@ -6,16 +5,21 @@ import MonthView from '../calendar/MonthView';
 import { CalendarViewSkeleton } from '../ui/LoadingSkeletons';
 import { ErrorMessage } from '../ui/ErrorMessage';
 
-interface CalendarViewProps {
+export interface CalendarViewProps {
     events: AppointmentEvent[];
     onSlotClick: (date: Date) => void;
     onEventClick: (event: AppointmentEvent) => void;
-    onUpdateAppointmentDate: (eventId: number, newStartDate: Date) => Promise<void>;
+    onUpdateAppointmentDate: (eventId: string | number, newStartDate: Date, newEndDate: Date) => Promise<void>;
     isLoading: boolean;
     error: string | null;
+    onSyncWithGoogle: () => void;
+    isReadyToSync: boolean;
+    isAuthenticatedWithGoogle: boolean;
 }
 
-const CalendarView: React.FC<CalendarViewProps> = ({ events, onSlotClick, onEventClick, onUpdateAppointmentDate, isLoading, error }) => {
+import { CheckCircle, RefreshCw } from 'lucide-react';
+
+const CalendarView: React.FC<CalendarViewProps> = ({ events, onSlotClick, onEventClick, onUpdateAppointmentDate, isLoading, error, onSyncWithGoogle, isReadyToSync, isAuthenticatedWithGoogle }) => {
     const [currentDate, setCurrentDate] = useState(new Date(2025, 6, 2));
 
     const changeDate = (amount: number) => {
@@ -32,6 +36,22 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onSlotClick, onEven
 
     return (
         <div className="flex flex-col h-full">
+            <div className="flex justify-between items-center mb-4">
+                <h1 className="text-2xl font-bold">Calendario</h1>
+                <div>
+                    {isAuthenticatedWithGoogle ? (
+                        <div className="flex items-center space-x-2 text-green-600">
+                            <CheckCircle size={20} />
+                            <span>Sincronizado con Google</span>
+                        </div>
+                    ) : (
+                        <button onClick={onSyncWithGoogle} disabled={!isReadyToSync || isLoading} className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 space-x-2">
+                            {isLoading && <RefreshCw className="animate-spin" size={16} />}
+                            <span>Sincronizar con Google</span>
+                        </button>
+                    )}
+                </div>
+            </div>
             <header className="flex flex-wrap justify-between items-center mb-6 flex-shrink-0 gap-4">
                 <h2 className="text-3xl font-bold text-slate-800 dark:text-slate-100">Calendario de Citas</h2>
                 <div className="flex items-center space-x-2 md:space-x-4">

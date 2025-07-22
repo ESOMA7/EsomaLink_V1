@@ -25,7 +25,7 @@ const App: React.FC = () => {
     const [areNotificationsEnabled, setAreNotificationsEnabled] = useState(() => localStorage.getItem('notifications') === 'true');
     const [hasNewIntervention, setHasNewIntervention] = useState(false);
 
-    const { events: appointments, isLoading: loadingAppointments, error: errorAppointments, saveAppointment, deleteAppointment, updateAppointmentDate } = useAppointments();
+    const { events: appointments, isLoading: loadingAppointments, error: errorAppointments, saveAppointment, deleteAppointment, updateAppointmentDate, syncWithGoogle, isReadyToSync, isAuthenticatedWithGoogle } = useAppointments();
         const onNewIntervention = useCallback(() => {
         setHasNewIntervention(true);
     }, []);
@@ -241,6 +241,9 @@ const App: React.FC = () => {
                                 await updateAppointmentDate(Number(eventId), newStartDate, newEndDate);
                             }
                         }}
+                        onSyncWithGoogle={syncWithGoogle}
+                        isReadyToSync={isReadyToSync}
+                        isAuthenticatedWithGoogle={isAuthenticatedWithGoogle}
                     />
                 );
             case 'interventions':
