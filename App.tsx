@@ -7,6 +7,7 @@ import PaymentsView from './components/views/PaymentsView';
 import InterventionsView from './components/views/InterventionsView';
 import NotesView from './components/views/NotesView';
 import WaitingPatientsView from './components/views/WaitingPatientsView';
+import SettingsView from './components/views/SettingsView';
 import ConfirmationModal from './components/ui/ConfirmationModal';
 import AddInterventionModal from './components/ui/AddInterventionModal';
 import AddPaymentModal from './components/ui/AddPaymentModal';
@@ -229,9 +230,15 @@ const App: React.FC = () => {
             case 'waiting_patients':
                 return <WaitingPatientsView patients={waitingPatients} onDelete={handleDeleteWaitingPatient} onUpdateStatus={(id, estado) => { const patient = waitingPatients.find(p => p.id === id); if (patient) { updateWaitingPatient({ ...patient, estado }); } }} onAdd={() => setWaitingPatientModalState({ isOpen: true, patient: null })} onEdit={(patient) => setWaitingPatientModalState({ isOpen: true, patient })} isLoading={loadingWaitingPatients} error={errorWaitingPatients} fetchWaitingPatients={fetchWaitingPatients} />;
             case 'settings':
-                return <div>Settings View</div>;
+                return <SettingsView 
+                    areNotificationsEnabled={areNotificationsEnabled}
+                    onToggleNotifications={() => setAreNotificationsEnabled(!areNotificationsEnabled)}
+                    onTestNewIntervention={handleTestNewIntervention}
+                    theme={theme}
+                    onToggleTheme={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+                />;
             default:
-                return <DashboardView setCurrentView={setCurrentView} interventions={interventions} payments={payments} appointments={appointments} userCalendars={userCalendars} isLoading={loadingAppointments || loadingInterventions || loadingPayments} error={errorAppointments || errorInterventions || errorPayments} onTestNewIntervention={handleTestNewIntervention} />;
+                return <DashboardView setCurrentView={setCurrentView} interventions={interventions} payments={payments} appointments={appointments} userCalendars={userCalendars} isLoading={loadingAppointments || loadingInterventions || loadingPayments} error={errorAppointments || errorInterventions || errorPayments} />;
         }
     };
 
@@ -251,10 +258,6 @@ const App: React.FC = () => {
                 currentView={currentView}
                 setCurrentView={setCurrentView}
                 onLogout={handleLogout}
-                theme={theme}
-                onToggleTheme={() => setTheme(theme === 'light' ? 'dark' : 'light')}
-                areNotificationsEnabled={areNotificationsEnabled}
-                onToggleNotifications={() => setAreNotificationsEnabled(!areNotificationsEnabled)}
                 newInterventionAvailable={hasPendingInterventions}
             />
             <main className="flex-1 p-6 overflow-auto">
