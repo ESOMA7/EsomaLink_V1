@@ -1,30 +1,30 @@
 
 import React from 'react';
 import { Calendar, LayoutDashboard, DollarSign, AlertTriangle, Power, Settings, BookText, ClipboardList } from 'lucide-react';
-import { View } from '../types';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { APP_LOGO_URL } from '../constants';
 
 interface SidebarProps {
-    currentView: View;
-    setCurrentView: (view: View) => void;
     onLogout: () => void;
     newInterventionAvailable: boolean;
 }
 
 const navItems = [
-    { id: 'dashboard' as View, icon: LayoutDashboard, label: 'Dashboard' },
-    { id: 'calendar' as View, icon: Calendar, label: 'Calendario' },
-    { id: 'payments' as View, icon: DollarSign, label: 'Pagos' },
-    { id: 'interventions' as View, icon: AlertTriangle, label: 'Intervenciones' },
-    { id: 'notes' as View, icon: BookText, label: 'Notas' },
-    { id: 'waiting_patients' as View, icon: ClipboardList, label: 'Pacientes en Espera' },
-    { id: 'settings' as View, icon: Settings, label: 'Configuración' },
+    { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
+    { path: '/calendar', icon: Calendar, label: 'Calendario' },
+    { path: '/payments', icon: DollarSign, label: 'Pagos' },
+    { path: '/interventions', icon: AlertTriangle, label: 'Intervenciones' },
+    { path: '/notes', icon: BookText, label: 'Notas' },
+    { path: '/waiting-patients', icon: ClipboardList, label: 'Pacientes en Espera' },
+    { path: '/settings', icon: Settings, label: 'Configuración' },
 ];
 
 
 
 
-export const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, onLogout, newInterventionAvailable }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ onLogout, newInterventionAvailable }) => {
+    const navigate = useNavigate();
+    const location = useLocation();
 
     return (
         <aside className="w-20 lg:w-64 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 flex flex-col shadow-lg dark:shadow-black/20 flex-shrink-0">
@@ -38,18 +38,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, o
             <nav className="mt-6">
                 <ul>
                     {navItems.map(item => (
-                        <li key={item.id} className="px-4 lg:px-6 mb-2">
-                            <a 
-                                href="#" 
-                                onClick={(e) => { e.preventDefault(); setCurrentView(item.id); }} 
-                                className={`relative flex items-center p-3 rounded-lg transition-colors duration-200 ${currentView === item.id ? 'bg-orange-100 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400' : 'hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'}`}
+                        <li key={item.path} className="px-4 lg:px-6 mb-2">
+                            <button 
+                                onClick={() => navigate(item.path)} 
+                                className={`relative flex items-center p-3 rounded-lg transition-colors duration-200 w-full text-left ${location.pathname === item.path ? 'bg-orange-100 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400' : 'hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'}`}
                             >
                                 <item.icon className="h-6 w-6 flex-shrink-0" />
                                 <span className="hidden lg:block ml-4 font-medium">{item.label}</span>
-                                {item.id === 'interventions' && newInterventionAvailable && (
+                                {item.path === '/interventions' && newInterventionAvailable && (
                                     <span className="absolute top-2 right-2 block h-2.5 w-2.5 rounded-full bg-orange-500 ring-2 ring-white dark:ring-slate-800"></span>
                                 )}
-                            </a>
+                            </button>
                         </li>
                     ))}
                 </ul>

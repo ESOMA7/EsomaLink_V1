@@ -1,13 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { BrowserRouter as Router } from 'react-router-dom';
 import { Sidebar } from './components/Sidebar';
 import LoginView from './components/views/LoginView';
-import DashboardView from './components/views/DashboardView';
-import CalendarView from './components/views/CalendarView';
-import PaymentsView from './components/views/PaymentsView';
-import InterventionsView from './components/views/InterventionsView';
-import NotesView from './components/views/NotesView';
-import WaitingPatientsView from './components/views/WaitingPatientsView';
-import SettingsView from './components/views/SettingsView';
+import AppRoutes from './routes/AppRoutes';
 import ConfirmationModal from './components/ui/ConfirmationModal';
 import AddInterventionModal from './components/ui/AddInterventionModal';
 import AddPaymentModal from './components/ui/AddPaymentModal';
@@ -21,7 +16,7 @@ import { LoaderCircle } from 'lucide-react';
 const App: React.FC = () => {
     const { isAuthenticated, isAuthLoading, authError, setAuthError, loginWithGoogle, logout: supabaseLogout } = useAuth();
 
-    const [currentView, setCurrentView] = useState<View>('dashboard');
+    // Removed currentView state as we now use React Router
     const [theme, setTheme] = useState<'light' | 'dark'>(() => (localStorage.getItem('theme') as 'light' | 'dark') || 'light');
     const [areNotificationsEnabled, setAreNotificationsEnabled] = useState(() => localStorage.getItem('notifications') === 'true');
     const [tempInterventions, setTempInterventions] = useState<Intervention[]>([]);
@@ -215,32 +210,7 @@ const App: React.FC = () => {
         setTempInterventions(prev => [fakeIntervention, ...prev]);
     };
 
-    const renderView = () => {
-        switch (currentView) {
-            case 'dashboard':
-                return <DashboardView setCurrentView={setCurrentView} interventions={interventions} payments={payments} appointments={appointments} userCalendars={userCalendars} isLoading={loadingAppointments || loadingInterventions || loadingPayments} error={errorAppointments || errorInterventions || errorPayments} onTestNewIntervention={handleTestNewIntervention} />;
-            case 'calendar':
-                return <CalendarView />;
-            case 'interventions':
-                return <InterventionsView interventions={interventions} onUpdateStatus={updateInterventionStatus} onDelete={handleDeleteIntervention} onGenerateResponse={handleGenerateResponse} onAdd={() => setInterventionModalState({ isOpen: true, intervention: null })} onEdit={(intervention) => setInterventionModalState({ isOpen: true, intervention })} isLoading={loadingInterventions} error={errorInterventions ? new Error(errorInterventions) : null} selectedIds={selectedInterventionIds} onSelectionChange={setSelectedInterventionIds} onDeleteSelected={confirmDeleteSelectedInterventions} fetchInterventions={fetchInterventions} />;
-            case 'payments':
-                return <PaymentsView payments={payments} onDelete={handleDeletePayment} onAdd={() => setPaymentModalState({ isOpen: true, payment: null })} onEdit={(payment) => setPaymentModalState({ isOpen: true, payment })} isLoading={loadingPayments} error={errorPayments} fetchPayments={fetchPayments} />;
-            case 'notes':
-                return <NotesView notes={notes} onSaveNote={saveNote} onDeleteNote={handleDeleteNote} isLoading={loadingNotes} error={errorNotes} />;
-            case 'waiting_patients':
-                return <WaitingPatientsView patients={waitingPatients} onDelete={handleDeleteWaitingPatient} onUpdateStatus={(id, estado) => { const patient = waitingPatients.find(p => p.id === id); if (patient) { updateWaitingPatient({ ...patient, estado }); } }} onAdd={() => setWaitingPatientModalState({ isOpen: true, patient: null })} onEdit={(patient) => setWaitingPatientModalState({ isOpen: true, patient })} isLoading={loadingWaitingPatients} error={errorWaitingPatients} fetchWaitingPatients={fetchWaitingPatients} />;
-            case 'settings':
-                return <SettingsView 
-                    areNotificationsEnabled={areNotificationsEnabled}
-                    onToggleNotifications={() => setAreNotificationsEnabled(!areNotificationsEnabled)}
-                    onTestNewIntervention={handleTestNewIntervention}
-                    theme={theme}
-                    onToggleTheme={() => setTheme(theme === 'light' ? 'dark' : 'light')}
-                />;
-            default:
-                return <DashboardView setCurrentView={setCurrentView} interventions={interventions} payments={payments} appointments={appointments} userCalendars={userCalendars} isLoading={loadingAppointments || loadingInterventions || loadingPayments} error={errorAppointments || errorInterventions || errorPayments} />;
-        }
-    };
+    // Removed renderView function as we now use React Router
 
     if (isAuthLoading) {
         return <div className="flex items-center justify-center h-screen bg-slate-50 dark:bg-slate-900"><LoaderCircle className="w-12 h-12 animate-spin text-blue-600" /></div>;
@@ -251,24 +221,64 @@ const App: React.FC = () => {
     }
 
     return (
-        <div className="flex h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-50">
-            <Toaster position="top-center" reverseOrder={false} />
-            <ConfirmationModal modalState={confirmationModalState} setModalState={setConfirmationModalState} />
-            <Sidebar
-                currentView={currentView}
-                setCurrentView={setCurrentView}
-                onLogout={handleLogout}
-                newInterventionAvailable={hasPendingInterventions}
-            />
-            <main className="flex-1 p-6 overflow-auto">
-                {renderView()}
-            </main>
+        <Router>
+            <div className="flex h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-50">
+                <Toaster position="top-center" reverseOrder={false} />
+                <ConfirmationModal modalState={confirmationModalState} setModalState={setConfirmationModalState} />
+                <Sidebar
+                    onLogout={handleLogout}
+                    newInterventionAvailable={hasPendingInterventions}
+                />
+                <main className="flex-1 p-6 overflow-auto">
+                    <AppRoutes
+                        interventions={interventions}
+                        payments={payments}
+                        appointments={appointments}
+                        userCalendars={userCalendars}
+                        loadingAppointments={loadingAppointments}
+                        loadingInterventions={loadingInterventions}
+                        loadingPayments={loadingPayments}
+                        errorAppointments={errorAppointments}
+                        errorInterventions={errorInterventions}
+                        errorPayments={errorPayments}
+                        onTestNewIntervention={handleTestNewIntervention}
+                        setCurrentView={() => {}} // Legacy prop, no longer used
+                        updateInterventionStatus={updateInterventionStatus}
+                        handleDeleteIntervention={handleDeleteIntervention}
+                        handleGenerateResponse={handleGenerateResponse}
+                        setInterventionModalState={setInterventionModalState}
+                        selectedInterventionIds={selectedInterventionIds}
+                        setSelectedInterventionIds={setSelectedInterventionIds}
+                        confirmDeleteSelectedInterventions={confirmDeleteSelectedInterventions}
+                        fetchInterventions={fetchInterventions}
+                        handleDeletePayment={handleDeletePayment}
+                         setPaymentModalState={setPaymentModalState}
+                         fetchPayments={fetchPayments}
+                        notes={notes}
+                        saveNote={saveNote}
+                        handleDeleteNote={handleDeleteNote}
+                        loadingNotes={loadingNotes}
+                        errorNotes={errorNotes}
+                        waitingPatients={waitingPatients}
+                        handleDeleteWaitingPatient={handleDeleteWaitingPatient}
+                        updateWaitingPatient={updateWaitingPatient}
+                        setWaitingPatientModalState={setWaitingPatientModalState}
+                        loadingWaitingPatients={loadingWaitingPatients}
+                        errorWaitingPatients={errorWaitingPatients}
+                        fetchWaitingPatients={fetchWaitingPatients}
+                        areNotificationsEnabled={areNotificationsEnabled}
+                        setAreNotificationsEnabled={setAreNotificationsEnabled}
+                        theme={theme}
+                        setTheme={setTheme}
+                    />
+                </main>
 
-            {/* Modals */}
-            <AddInterventionModal modalState={interventionModalState} onClose={() => setInterventionModalState({ isOpen: false, intervention: null })} onSave={handleSaveIntervention} />
-            <AddPaymentModal modalState={paymentModalState} onClose={() => setPaymentModalState({ isOpen: false, payment: null })} onSave={handleSavePayment} />
-            <AddWaitingPatientModal modalState={waitingPatientModalState} onClose={() => setWaitingPatientModalState({ isOpen: false, patient: null })} onSave={handleSaveWaitingPatient} />
-        </div>
+                {/* Modals */}
+                <AddInterventionModal modalState={interventionModalState} onClose={() => setInterventionModalState({ isOpen: false, intervention: null })} onSave={handleSaveIntervention} />
+                <AddPaymentModal modalState={paymentModalState} onClose={() => setPaymentModalState({ isOpen: false, payment: null })} onSave={handleSavePayment} />
+                <AddWaitingPatientModal modalState={waitingPatientModalState} onClose={() => setWaitingPatientModalState({ isOpen: false, patient: null })} onSave={handleSaveWaitingPatient} />
+            </div>
+        </Router>
     );
 };
 

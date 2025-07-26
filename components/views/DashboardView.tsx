@@ -1,6 +1,7 @@
 
 import React from 'react';
-import { AppointmentEvent, Intervention, Payment, View, UserCalendar } from '../../types';
+import { useNavigate } from 'react-router-dom';
+import { AppointmentEvent, Intervention, Payment, UserCalendar } from '../../types';
 import { Calendar, AlertTriangle, DollarSign, CheckCircle } from 'lucide-react';
 import InfoCard from '../ui/InfoCard';
 import { DashboardViewSkeleton } from '../ui/LoadingSkeletons';
@@ -11,13 +12,15 @@ interface DashboardViewProps {
     payments: Payment[];
     appointments: AppointmentEvent[];
     userCalendars: UserCalendar[];
-    setCurrentView: (view: View) => void;
+    setCurrentView: (view: string) => void; // Legacy prop, no longer used
     isLoading: boolean;
     error: string | null;
-
+    onTestNewIntervention?: () => void;
 }
 
-const DashboardView: React.FC<DashboardViewProps> = ({ interventions, payments, appointments, userCalendars, setCurrentView, isLoading, error }) => {
+const DashboardView: React.FC<DashboardViewProps> = ({ interventions, payments, appointments, userCalendars, isLoading, error }) => {
+    const navigate = useNavigate();
+    
     // Use a mock date consistent with the demo data to ensure the dashboard reflects the correct state.
     if (isLoading) {
         return <DashboardViewSkeleton />;
@@ -78,7 +81,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ interventions, payments, 
                     value={todaysAppointments.toString()}
                     subtitle="Eventos agendados"
                     color="blue"
-                    onClick={() => setCurrentView('calendar')}
+                    onClick={() => navigate('/calendar')}
                 />
                 <InfoCard 
                     icon={interventionsIcon}
@@ -86,7 +89,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ interventions, payments, 
                     value={interventionsValue}
                     subtitle={interventionsSubtitle}
                     color={interventionsColor}
-                    onClick={() => setCurrentView('interventions')}
+                    onClick={() => navigate('/interventions')}
                 />
                 <InfoCard 
                     icon={DollarSign}
@@ -95,7 +98,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ interventions, payments, 
                     subtitle="Total acumulado"
                     color="green"
                     isSensitive={true}
-                    onClick={() => setCurrentView('payments')}
+                    onClick={() => navigate('/payments')}
                 />
             </div>
 
