@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Calendar } from '@/types/calendar';
 import { AppointmentEvent } from '@/types';
 import * as googleCalendarService from '../services/googleCalendarService';
+import { supabase } from '../services/supabaseClient';
 
 // Removed the duplicate interface Calendar definition
 
@@ -34,6 +35,45 @@ export const useAppointments = () => {
     const [visibleCalendarIds, setVisibleCalendarIds] = useState<Set<string>>(new Set());
     const [isLoading, setIsLoading] = useState(false); 
     const [error, setError] = useState<string | null>(null);
+
+    const getGoogleTokenFromSupabase = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('configuraciones')
+                .select('valor')
+                .eq('clave', 'google_calendar_token')
+                .single();
+
+            if (error) {
+                console.error('Error fetching Google token from Supabase:', error);
+                return null;
+            }
+
+            const dataVal = data ? data.valor : null;
+
+            if (dataVal && dataVal.access_token) {
+                return dataVal.access_token;
+            }
+            return null;
+        } catch (error) {
+            console.error('Error fetching Google token from Supabase:', error);
+            return null;
+        }
+    };
+
+    const saveGoogleTokenToSupabase = async (token: GoogleTokenResponse) => {
+        try {
+            const { error } = await supabase
+                .from('configuraciones')
+                .upsert({ clave: 'google_calendar_token', valor: token }, { onConflict: 'clave' });
+
+            if (error) {
+                console.error('Error saving Google token to Supabase:', error);
+            }
+        } catch (error) {
+            console.error('Error saving Google token to Supabase:', error);
+        }
+    };
 
     const fetchAllEvents = useCallback(async (token: GoogleTokenResponse | null) => {
         if (!token) {
@@ -74,7 +114,7 @@ export const useAppointments = () => {
             try {
                 console.log('[useAppointments] Initializing GAPI and Token clients...');
                 await initializeGapiClient();
-                initializeTokenClient((tokenResponse) => {
+                initializeTokenClient(async (tokenResponse) => {
                     if (tokenResponse.error) {
                         setError('Error de autenticación con Google. Por favor, intenta de nuevo.');
                         console.error('[useAppointments] Token Error:', tokenResponse.error);
@@ -83,10 +123,17 @@ export const useAppointments = () => {
                         return;
                     }
                     console.log('[useAppointments] Google token received.');
+                    await saveGoogleTokenToSupabase(tokenResponse);
                     setGoogleAuthToken(tokenResponse);
                 });
                 setIsGoogleApiInitialized(true);
                 console.log('[useAppointments] GAPI and Token clients initialized.');
+
+                const storedToken = await getGoogleTokenFromSupabase();
+                if (storedToken) {
+                    setGoogleAuthToken(storedToken as GoogleTokenResponse);
+                }
+
             } catch (error) {
                 setError('No se pudo inicializar la API de Google.');
                 console.error('[useAppointments] Initialization error:', error);
