@@ -2,7 +2,7 @@ import React, { Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 
 // Lazy load components
-const DashboardView = React.lazy(() => import('../components/views/DashboardView'));
+const DashboardViewWrapper = React.lazy(() => import('../components/views/DashboardViewWrapper'));
 const CalendarViewWrapper = React.lazy(() => import('../components/views/CalendarViewWrapper'));
 const InterventionsViewWrapper = React.lazy(() => import('../components/views/InterventionsViewWrapper'));
 const PaymentsViewWrapper = React.lazy(() => import('../components/views/PaymentsViewWrapper'));
@@ -12,31 +12,13 @@ const SettingsView = React.lazy(() => import('../components/views/SettingsView')
 import { Intervention, Payment, Appointment, UserCalendar, Note, WaitingPatient } from '../types';
 
 interface AppRoutesProps {
-  // Dashboard props (still needed for dashboard)
-  interventions: Intervention[];
-  payments: Payment[];
-  appointments: Appointment[];
-  userCalendars: UserCalendar[];
-  loadingAppointments: boolean;
-  loadingInterventions: boolean;
-  loadingPayments: boolean;
-  errorAppointments: string | null;
-  errorInterventions: string | null;
-  errorPayments: string | null;
-  onTestNewIntervention: () => void;
-  setCurrentView: (view: string) => void;
-  
-  // Modal states (shared across components)
-  setInterventionModalState: (state: any) => void;
-  setPaymentModalState: (state: any) => void;
-  setWaitingPatientModalState: (state: any) => void;
-  setConfirmationModalState: (state: any) => void;
-  
-  // Temp interventions (for test interventions)
+  setInterventionModalState: (state: { isOpen: boolean; intervention: Intervention | null; }) => void;
+  setPaymentModalState: (state: { isOpen: boolean; payment: Payment | null; }) => void;
+  setWaitingPatientModalState: (state: { isOpen: boolean; patient: WaitingPatient | null; }) => void;
+  setConfirmationModalState: (state: { isOpen: boolean; title: string; message: string; onConfirm: () => void; }) => void;
   tempInterventions: Intervention[];
   setTempInterventions: (interventions: Intervention[]) => void;
-  
-  // Settings props
+  onTestNewIntervention: () => void;
   areNotificationsEnabled: boolean;
   setAreNotificationsEnabled: (enabled: boolean) => void;
   theme: string;
@@ -44,24 +26,13 @@ interface AppRoutesProps {
 }
 
 const AppRoutes: React.FC<AppRoutesProps> = ({
-  interventions,
-  payments,
-  appointments,
-  userCalendars,
-  loadingAppointments,
-  loadingInterventions,
-  loadingPayments,
-  errorAppointments,
-  errorInterventions,
-  errorPayments,
-  onTestNewIntervention,
-  setCurrentView,
   setInterventionModalState,
   setPaymentModalState,
   setWaitingPatientModalState,
   setConfirmationModalState,
   tempInterventions,
   setTempInterventions,
+  onTestNewIntervention,
   areNotificationsEnabled,
   setAreNotificationsEnabled,
   theme,
@@ -80,14 +51,8 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
       <Route 
         path="/" 
         element={
-          <DashboardView 
-            setCurrentView={setCurrentView}
-            interventions={interventions}
-            payments={payments}
-            appointments={appointments}
-            userCalendars={userCalendars}
-            isLoading={loadingAppointments || loadingInterventions || loadingPayments}
-            error={errorAppointments || errorInterventions || errorPayments}
+          <DashboardViewWrapper 
+            tempInterventions={tempInterventions}
             onTestNewIntervention={onTestNewIntervention}
           />
         } 

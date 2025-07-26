@@ -7,8 +7,7 @@ import ConfirmationModal from './components/ui/ConfirmationModal';
 import AddInterventionModal from './components/ui/AddInterventionModal';
 import AddPaymentModal from './components/ui/AddPaymentModal';
 import AddWaitingPatientModal from './components/ui/AddWaitingPatientModal';
-import { useAuth, useInterventions, usePayments } from '@/hooks';
-import { useAppointmentsContext } from './contexts/AppointmentsContext';
+import { useAuth } from '@/hooks';
 import { Intervention, Payment, WaitingPatient, View } from './types';
 import { Toaster, toast } from 'react-hot-toast';
 import { LoaderCircle } from 'lucide-react';
@@ -21,17 +20,7 @@ const App: React.FC = () => {
     const [areNotificationsEnabled, setAreNotificationsEnabled] = useState(() => localStorage.getItem('notifications') === 'true');
     const [tempInterventions, setTempInterventions] = useState<Intervention[]>([]);
 
-    const onNewIntervention = useCallback(() => {
-        // This callback is kept for the subscription, but doesn't need to set state anymore.
-    }, []);
-
-    // Only keep hooks needed for dashboard
-    const { interventions: dbInterventions, isLoading: loadingInterventions, error: errorInterventions, saveIntervention } = useInterventions({ onNewIntervention });
-    const interventions = [...tempInterventions, ...dbInterventions];
-    const { payments, isLoading: loadingPayments, error: errorPayments, savePayment } = usePayments();
-    const { events: appointments, isLoading: loadingAppointments, error: errorAppointments, userCalendars } = useAppointmentsContext();
-
-    const hasPendingInterventions = interventions.some(i => i.estado === 'Pendiente');
+    // No data fetching hooks here anymore - moved to individual wrappers
 
     const [interventionModalState, setInterventionModalState] = useState<{ isOpen: boolean; intervention: Intervention | null; }>({ isOpen: false, intervention: null });
     const [paymentModalState, setPaymentModalState] = useState<{ isOpen: boolean; payment: Payment | null; }>({ isOpen: false, payment: null });
@@ -62,15 +51,7 @@ const App: React.FC = () => {
         });
     };
 
-    const handleSaveIntervention = async (data: any) => {
-        await saveIntervention(data);
-        setInterventionModalState({ isOpen: false, intervention: null });
-    };
-
-    const handleSavePayment = async (data: any) => {
-        await savePayment(data);
-        setPaymentModalState({ isOpen: false, payment: null });
-    };
+    // Modal handlers will be implemented in individual wrappers
 
     // Removed other handlers as they're now in wrappers
 
@@ -114,28 +95,17 @@ const App: React.FC = () => {
                 <ConfirmationModal modalState={confirmationModalState} setModalState={setConfirmationModalState} />
                 <Sidebar
                     onLogout={handleLogout}
-                    newInterventionAvailable={hasPendingInterventions}
+                    newInterventionAvailable={false} // Will be handled by dashboard wrapper
                 />
                 <main className="flex-1 p-6 overflow-auto">
                     <AppRoutes
-                        interventions={interventions}
-                        payments={payments}
-                        appointments={appointments}
-                        userCalendars={userCalendars}
-                        loadingAppointments={loadingAppointments}
-                        loadingInterventions={loadingInterventions}
-                        loadingPayments={loadingPayments}
-                        errorAppointments={errorAppointments}
-                        errorInterventions={errorInterventions}
-                        errorPayments={errorPayments}
-                        onTestNewIntervention={handleTestNewIntervention}
-                        setCurrentView={() => {}} // Legacy prop
                         setInterventionModalState={setInterventionModalState}
                         setPaymentModalState={setPaymentModalState}
                         setWaitingPatientModalState={setWaitingPatientModalState}
                         setConfirmationModalState={setConfirmationModalState}
                         tempInterventions={tempInterventions}
                         setTempInterventions={setTempInterventions}
+                        onTestNewIntervention={handleTestNewIntervention}
                         areNotificationsEnabled={areNotificationsEnabled}
                         setAreNotificationsEnabled={setAreNotificationsEnabled}
                         theme={theme}
@@ -144,8 +114,8 @@ const App: React.FC = () => {
                 </main>
 
                 {/* Modals */}
-                <AddInterventionModal modalState={interventionModalState} onClose={() => setInterventionModalState({ isOpen: false, intervention: null })} onSave={handleSaveIntervention} />
-                <AddPaymentModal modalState={paymentModalState} onClose={() => setPaymentModalState({ isOpen: false, payment: null })} onSave={handleSavePayment} />
+                <AddInterventionModal modalState={interventionModalState} onClose={() => setInterventionModalState({ isOpen: false, intervention: null })} onSave={() => {}} />
+                <AddPaymentModal modalState={paymentModalState} onClose={() => setPaymentModalState({ isOpen: false, payment: null })} onSave={() => {}} />
                 <AddWaitingPatientModal modalState={waitingPatientModalState} onClose={() => setWaitingPatientModalState({ isOpen: false, patient: null })} onSave={() => {}} />
             </div>
         </Router>
