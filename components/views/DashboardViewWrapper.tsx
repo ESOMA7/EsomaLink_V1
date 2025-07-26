@@ -1,7 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import DashboardView from './DashboardView';
 import { useInterventions, usePayments } from '../../hooks';
-import { useAppointmentsContext } from '../../contexts/AppointmentsContext';
 import { Intervention } from '../../types';
 
 interface DashboardViewWrapperProps {
@@ -17,11 +16,16 @@ const DashboardViewWrapper: React.FC<DashboardViewWrapperProps> = ({
     // This callback is kept for the subscription, but doesn't need to set state anymore.
   }, []);
 
-  // Data fetching hooks for dashboard
+  // Data fetching hooks for dashboard (excluding appointments to avoid loading configurations)
   const { interventions: dbInterventions, isLoading: loadingInterventions, error: errorInterventions } = useInterventions({ onNewIntervention });
   const interventions = [...tempInterventions, ...dbInterventions];
   const { payments, isLoading: loadingPayments, error: errorPayments } = usePayments();
-  const { events: appointments, isLoading: loadingAppointments, error: errorAppointments, userCalendars } = useAppointmentsContext();
+  
+  // Dashboard doesn't need appointments data to avoid loading configurations endpoint
+  const appointments = [];
+  const userCalendars = [];
+  const loadingAppointments = false;
+  const errorAppointments = null;
 
   return (
     <DashboardView 
@@ -30,8 +34,8 @@ const DashboardViewWrapper: React.FC<DashboardViewWrapperProps> = ({
       payments={payments}
       appointments={appointments}
       userCalendars={userCalendars}
-      isLoading={loadingAppointments || loadingInterventions || loadingPayments}
-      error={errorAppointments || errorInterventions || errorPayments}
+      isLoading={loadingInterventions || loadingPayments}
+      error={errorInterventions || errorPayments}
       onTestNewIntervention={onTestNewIntervention}
     />
   );
