@@ -1,16 +1,18 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import DashboardView from '../components/views/DashboardView';
-import CalendarView from '../components/views/CalendarView';
-import InterventionsView from '../components/views/InterventionsView';
-import PaymentsView from '../components/views/PaymentsView';
-import NotesView from '../components/views/NotesView';
-import WaitingPatientsView from '../components/views/WaitingPatientsView';
-import SettingsView from '../components/views/SettingsView';
+
+// Lazy load components
+const DashboardView = React.lazy(() => import('../components/views/DashboardView'));
+const CalendarViewWrapper = React.lazy(() => import('../components/views/CalendarViewWrapper'));
+const InterventionsViewWrapper = React.lazy(() => import('../components/views/InterventionsViewWrapper'));
+const PaymentsViewWrapper = React.lazy(() => import('../components/views/PaymentsViewWrapper'));
+const NotesViewWrapper = React.lazy(() => import('../components/views/NotesViewWrapper'));
+const WaitingPatientsViewWrapper = React.lazy(() => import('../components/views/WaitingPatientsViewWrapper'));
+const SettingsView = React.lazy(() => import('../components/views/SettingsView'));
 import { Intervention, Payment, Appointment, UserCalendar, Note, WaitingPatient } from '../types';
 
 interface AppRoutesProps {
-  // Dashboard props
+  // Dashboard props (still needed for dashboard)
   interventions: Intervention[];
   payments: Payment[];
   appointments: Appointment[];
@@ -24,38 +26,15 @@ interface AppRoutesProps {
   onTestNewIntervention: () => void;
   setCurrentView: (view: string) => void;
   
-  // Interventions props
-  updateInterventionStatus: (id: number, status: string) => void;
-  handleDeleteIntervention: (id: number) => void;
-  handleGenerateResponse: (intervention: Intervention) => void;
+  // Modal states (shared across components)
   setInterventionModalState: (state: any) => void;
-  selectedInterventionIds: number[];
-  setSelectedInterventionIds: (ids: number[]) => void;
-  confirmDeleteSelectedInterventions: () => void;
-  fetchInterventions: () => void;
-  
-  // Payments props
-  handleDeletePayment: (id: number, nombre: string) => void;
   setPaymentModalState: (state: any) => void;
-  loadingPayments: boolean;
-  errorPayments: string | null;
-  fetchPayments: () => void;
-  
-  // Notes props
-  notes: Note[];
-  saveNote: (note: any) => void;
-  handleDeleteNote: (id: number, title: string) => void;
-  loadingNotes: boolean;
-  errorNotes: string | null;
-  
-  // Waiting patients props
-  waitingPatients: WaitingPatient[];
-  handleDeleteWaitingPatient: (id: number, nombre: string) => void;
-  updateWaitingPatient: (patient: WaitingPatient) => void;
   setWaitingPatientModalState: (state: any) => void;
-  loadingWaitingPatients: boolean;
-  errorWaitingPatients: string | null;
-  fetchWaitingPatients: () => void;
+  setConfirmationModalState: (state: any) => void;
+  
+  // Temp interventions (for test interventions)
+  tempInterventions: Intervention[];
+  setTempInterventions: (interventions: Intervention[]) => void;
   
   // Settings props
   areNotificationsEnabled: boolean;
@@ -77,36 +56,27 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
   errorPayments,
   onTestNewIntervention,
   setCurrentView,
-  updateInterventionStatus,
-  handleDeleteIntervention,
-  handleGenerateResponse,
   setInterventionModalState,
-  selectedInterventionIds,
-  setSelectedInterventionIds,
-  confirmDeleteSelectedInterventions,
-  fetchInterventions,
-  handleDeletePayment,
   setPaymentModalState,
-  fetchPayments,
-  notes,
-  saveNote,
-  handleDeleteNote,
-  loadingNotes,
-  errorNotes,
-  waitingPatients,
-  handleDeleteWaitingPatient,
-  updateWaitingPatient,
   setWaitingPatientModalState,
-  loadingWaitingPatients,
-  errorWaitingPatients,
-  fetchWaitingPatients,
+  setConfirmationModalState,
+  tempInterventions,
+  setTempInterventions,
   areNotificationsEnabled,
   setAreNotificationsEnabled,
   theme,
   setTheme
 }) => {
+  const LoadingSpinner = () => (
+    <div className="flex items-center justify-center h-64">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <span className="ml-2 text-gray-600">Cargando...</span>
+    </div>
+  );
+
   return (
-    <Routes>
+    <Suspense fallback={<LoadingSpinner />}>
+      <Routes>
       <Route 
         path="/" 
         element={
@@ -128,70 +98,42 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
       />
       <Route 
         path="/calendar" 
-        element={<CalendarView />} 
+        element={<CalendarViewWrapper />} 
       />
       <Route 
         path="/interventions" 
         element={
-          <InterventionsView 
-            interventions={interventions}
-            onUpdateStatus={updateInterventionStatus}
-            onDelete={handleDeleteIntervention}
-            onGenerateResponse={handleGenerateResponse}
-            onAdd={() => setInterventionModalState({ isOpen: true, intervention: null })}
-            onEdit={(intervention) => setInterventionModalState({ isOpen: true, intervention })}
-            isLoading={loadingInterventions}
-            error={errorInterventions ? new Error(errorInterventions) : null}
-            selectedIds={selectedInterventionIds}
-            onSelectionChange={setSelectedInterventionIds}
-            onDeleteSelected={confirmDeleteSelectedInterventions}
-            fetchInterventions={fetchInterventions}
+          <InterventionsViewWrapper 
+            setInterventionModalState={setInterventionModalState}
+            setConfirmationModalState={setConfirmationModalState}
+            tempInterventions={tempInterventions}
+            setTempInterventions={setTempInterventions}
           />
         } 
       />
       <Route 
         path="/payments" 
         element={
-          <PaymentsView 
-            payments={payments}
-            onDelete={handleDeletePayment}
-            onAdd={() => setPaymentModalState({ isOpen: true, payment: null })}
-            onEdit={(payment) => setPaymentModalState({ isOpen: true, payment })}
-            isLoading={loadingPayments}
-            error={errorPayments}
-            fetchPayments={fetchPayments}
+          <PaymentsViewWrapper 
+            setPaymentModalState={setPaymentModalState}
+            setConfirmationModalState={setConfirmationModalState}
           />
         } 
       />
       <Route 
         path="/notes" 
         element={
-          <NotesView 
-            notes={notes}
-            onSaveNote={saveNote}
-            onDeleteNote={handleDeleteNote}
-            isLoading={loadingNotes}
-            error={errorNotes}
+          <NotesViewWrapper 
+            setConfirmationModalState={setConfirmationModalState}
           />
         } 
       />
       <Route 
         path="/waiting-patients" 
         element={
-          <WaitingPatientsView 
-            patients={waitingPatients}
-            onDelete={handleDeleteWaitingPatient}
-            onUpdateStatus={(id, estado) => {
-              const patient = waitingPatients.find(p => p.id === id);
-              if (patient) {
-                updateWaitingPatient({ ...patient, estado });
-              }
-            }}
-            onAdd={() => setWaitingPatientModalState({ isOpen: true, patient: null })}
-            onEdit={(patient) => setWaitingPatientModalState({ isOpen: true, patient })}
-            isLoading={loadingWaitingPatients}
-            error={errorWaitingPatients}
-            fetchWaitingPatients={fetchWaitingPatients}
+          <WaitingPatientsViewWrapper 
+            setWaitingPatientModalState={setWaitingPatientModalState}
+            setConfirmationModalState={setConfirmationModalState}
           />
         } 
       />
@@ -210,6 +152,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
       {/* Redirect any unknown routes to dashboard */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </Suspense>
   );
 };
 
