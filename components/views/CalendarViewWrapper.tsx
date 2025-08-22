@@ -132,19 +132,8 @@ const CalendarViewWrapper: React.FC = () => {
             <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Calendario de Citas</h2>
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
-            {isAuthenticatedWithGoogle ? (
-              <button onClick={syncWithGoogle} className="flex items-center px-3 py-2 text-xs sm:text-sm font-semibold bg-green-100 text-green-700 dark:bg-green-800/50 dark:text-green-300 rounded-lg hover:bg-green-200 dark:hover:bg-green-700/50 transition-colors">
-                <CheckCircle className="mr-2 h-4 w-4" /> Sincronizado
-              </button>
-            ) : (
-              <button onClick={syncWithGoogle} className="flex items-center px-3 py-2 text-xs sm:text-sm font-semibold bg-blue-100 text-blue-700 dark:bg-blue-800/50 dark:text-blue-300 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-700/50 transition-colors">
-                Sincronizar con Google
-              </button>
-            )}
-            <button onClick={refreshEvents} disabled={isLoading} className="flex items-center px-3 py-2 text-xs sm:text-sm font-semibold bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-600 transition-colors disabled:opacity-50">
-              {isLoading ? <LoaderCircle className="animate-spin mr-2 h-4 w-4" /> : <RefreshCw className="mr-2 h-4 w-4" />} 
-              Refrescar
-            </button>
+
+
             <div className="flex items-center border border-slate-300 dark:border-slate-600 rounded-lg">
               <button onClick={() => handleViewChange('month')} className={`px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-l-md transition-colors ${currentView === 'month' ? 'bg-orange-500 text-white' : 'bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600'}`}>Mes</button>
               <button onClick={() => handleViewChange('week')} className={`px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-r-md border-l border-slate-300 dark:border-slate-600 transition-colors ${currentView === 'week' ? 'bg-orange-500 text-white' : 'bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600'}`}>Semana</button>
