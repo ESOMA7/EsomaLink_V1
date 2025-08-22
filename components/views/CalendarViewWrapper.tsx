@@ -61,6 +61,8 @@ const CalendarViewWrapper: React.FC = () => {
     if (result.success) {
       toast.success('Cita creada correctamente.');
       setAppointmentModalState({ isOpen: false, event: null, date: null });
+    } else {
+      toast.error(result.error || 'No se pudo crear la cita. Verifique los permisos del calendario.');
     }
     return result;
   };
