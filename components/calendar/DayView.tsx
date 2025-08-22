@@ -1,5 +1,6 @@
 import React from 'react';
 import { AppointmentEvent } from '../../types';
+import Timeline from './Timeline';
 
 interface DayViewProps {
   currentDate: Date;
@@ -17,6 +18,13 @@ const DayView: React.FC<DayViewProps> = ({ currentDate, events, onEventClick, on
     onSlotClick(clickedDate);
   };
 
+  const dayEvents = events.filter(event => {
+    const eventDate = new Date(event.start);
+    return eventDate.getDate() === currentDate.getDate() && 
+           eventDate.getMonth() === currentDate.getMonth() && 
+           eventDate.getFullYear() === currentDate.getFullYear();
+  });
+
   return (
     <div className="flex flex-col h-full">
       <header className="flex-none">
@@ -26,33 +34,37 @@ const DayView: React.FC<DayViewProps> = ({ currentDate, events, onEventClick, on
           </div>
         </div>
       </header>
-      <div className="flex-grow overflow-y-auto">
-        <div className="grid grid-cols-1">
+      <div className="flex-grow overflow-y-auto relative">
+        <Timeline />
+        <div className="grid grid-cols-1 absolute top-0 left-0 right-0 bottom-0">
           {dayHours.map(hour => (
             <div 
               key={hour} 
               className="h-24 border-b border-r border-slate-200 dark:border-slate-700 p-1 relative cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700"
               onClick={() => handleSlotClick(hour)}
             >
-              <div className="text-xs text-slate-500 dark:text-slate-400">{`${hour}:00`}</div>
-              {events
-                .filter(event => {
+              {dayEvents
+                .filter(event => new Date(event.start).getHours() === hour)
+                .map(event => {
                   const eventDate = new Date(event.start);
-                  return eventDate.getDate() === currentDate.getDate() && eventDate.getMonth() === currentDate.getMonth() && eventDate.getFullYear() === currentDate.getFullYear() && eventDate.getHours() === hour;
-                })
-                .map(event => (
-                  <div
-                    key={event.id}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onEventClick(event);
-                    }}
-                    className="absolute left-2 right-2 mt-1 p-1 rounded-lg text-white text-xs truncate"
-                    style={{ backgroundColor: event.backgroundColor || '#3174ad' }}
-                  >
-                    {event.title}
-                  </div>
-                ))}
+                  const topPosition = eventDate.getMinutes() / 60 * 100; // Position within the hour slot
+                  return (
+                    <div
+                      key={event.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEventClick(event);
+                      }}
+                      className="absolute left-10 right-2 mt-1 p-1 rounded-lg text-white text-xs truncate"
+                      style={{ 
+                        backgroundColor: event.backgroundColor || '#3174ad',
+                        top: `${topPosition}%`
+                      }}
+                    >
+                      {event.title}
+                    </div>
+                  )
+                })}
             </div>
           ))}
         </div>
