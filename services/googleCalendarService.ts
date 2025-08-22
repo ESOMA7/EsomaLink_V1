@@ -174,12 +174,14 @@ export const listUserCalendars = async () => {
     }
 };
 
-export const listUpcomingEvents = async (calendarId: string = 'primary', calendarColor?: string): Promise<AppointmentEvent[]> => {
+export const listUpcomingEvents = async (calendarId: string = 'primary', calendarColor?: string, timeMin?: string, timeMax?: string): Promise<AppointmentEvent[]> => {
     if (!window.gapi.client) {
         throw new Error('GAPI client is not initialized.');
     }
     const response = await window.gapi.client.calendar.events.list({
         'calendarId': calendarId,
+        'timeMin': timeMin,
+        'timeMax': timeMax,
         'showDeleted': false,
         'singleEvents': true,
         'maxResults': 250,

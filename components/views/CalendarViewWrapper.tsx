@@ -12,11 +12,11 @@ import { useAppointments } from '../../hooks/useAppointments';
 import DayView from '../calendar/DayView';
 
 const CalendarViewWrapper: React.FC = () => {
-  const { events, isLoading, error, refreshEvents, deleteAppointment, createAppointment, calendars } = useAppointments();
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentView, setCurrentView] = useState<'month' | 'week' | 'day'>('month');
+  const { events, isLoading, error, refreshEvents, deleteAppointment, createAppointment, calendars } = useAppointments(currentDate, currentView);
   const [appointmentModalState, setAppointmentModalState] = useState<{ isOpen: boolean; event: AppointmentEvent | null; date: Date | null; }>({ isOpen: false, event: null, date: null });
   const [confirmationModalState, setConfirmationModalState] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: (() => void) | null }>({ isOpen: false, title: '', message: '', onConfirm: null });
-  const [currentView, setCurrentView] = useState<'month' | 'week'>('month');
   const [selectedDate, setSelectedDate] = useState(currentDate);
 
   const changeDate = (amount: number) => {
@@ -70,10 +70,7 @@ const CalendarViewWrapper: React.FC = () => {
     return result;
   };
 
-  const handleViewChange = (view: 'month' | 'week') => {
-    if (view === 'week') {
-      setCurrentDate(new Date());
-    }
+  const handleViewChange = (view: 'month' | 'week' | 'day') => {
     setCurrentView(view);
   };
 
