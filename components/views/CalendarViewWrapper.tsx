@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, CheckCircle, RefreshCw, LoaderCircle, PanelLeft } from 'lucide-react';
-import { useAppointments } from '../../hooks/useAppointments';
+import { ChevronLeft, ChevronRight, PanelLeft } from 'lucide-react';
 import { AppointmentEvent, Calendar } from '../../types';
 import MonthView from '../calendar/MonthView';
 import WeekView from '../calendar/WeekView';
-import CalendarList from '../calendar/CalendarList';
 import { CalendarViewSkeleton } from '../ui/LoadingSkeletons';
 import { ErrorMessage } from '../ui/ErrorMessage';
 import AppointmentModal from '../ui/AppointmentModal';
@@ -12,20 +10,10 @@ import ConfirmationModal from '../ui/ConfirmationModal';
 import { toast } from 'react-hot-toast';
 
 const CalendarViewWrapper: React.FC = () => {
-  const {
-    events,
-    isLoading,
-    error,
-    saveAppointment,
-    deleteAppointment,
-    updateAppointmentDate,
-    userCalendars,
-    visibleCalendarIds,
-    toggleCalendarVisibility,
-    syncWithGoogle,
-    isAuthenticatedWithGoogle,
-    refreshEvents
-  } = useAppointments();
+  const [events, setEvents] = useState<AppointmentEvent[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [userCalendars, setUserCalendars] = useState<Calendar[]>([]);
 
   const [currentDate, setCurrentDate] = useState(new Date(2025, 6, 2));
   const [appointmentModalState, setAppointmentModalState] = useState<{ isOpen: boolean; event: AppointmentEvent | null; date: Date | null; }>({ isOpen: false, event: null, date: null });
@@ -34,9 +22,7 @@ const CalendarViewWrapper: React.FC = () => {
   const [isSidebarVisible, setIsSidebarVisible] = useState(false);
   const [selectedDate, setSelectedDate] = useState(currentDate);
 
-  const filteredEvents = events.filter(event => 
-    event.calendarId && visibleCalendarIds.has(event.calendarId)
-  );
+  const filteredEvents: AppointmentEvent[] = []; // Always empty
 
   const changeDate = (amount: number) => {
     setCurrentDate(prev => {
@@ -73,23 +59,12 @@ const CalendarViewWrapper: React.FC = () => {
   };
 
   const handleEventClick = (event: AppointmentEvent) => {
-    const calendar = userCalendars.find(cal => cal.id === event.calendarId);
-    const eventWithCorrectProfessional = {
-      ...event,
-      professional: calendar ? calendar.summary : event.professional,
-    };
-    setAppointmentModalState({ isOpen: true, event: eventWithCorrectProfessional, date: event.start });
+    setAppointmentModalState({ isOpen: true, event, date: event.start });
   };
 
   const handleSaveAppointment = async (data: Omit<AppointmentEvent, 'title' | 'id'> & { id?: string | number }) => {
-    const result = await saveAppointment(data);
-    if (result.success) {
-      setAppointmentModalState({ isOpen: false, event: null, date: null });
-      toast.success('Cita guardada con éxito.');
-    } else {
-      toast.error('No se pudo guardar la cita.');
-    }
-    return result;
+    toast.error('La creación de citas no está disponible.');
+    return { success: false };
   };
 
   const handleViewChange = (view: 'month' | 'week') => {
@@ -104,36 +79,21 @@ const CalendarViewWrapper: React.FC = () => {
   }, [currentDate]);
 
   const handleDeleteAppointment = (id: string | number, title: string) => {
-    setConfirmationModalState({
-      isOpen: true,
-      title: `Eliminar Cita: ${title}`,
-      message: '¿Estás seguro de que deseas eliminar esta cita? Esta acción no se puede deshacer.',
-      onConfirm: async () => {
-        try {
-          await deleteAppointment(id);
-          toast.success('Cita eliminada con éxito.');
-        } catch (error) {
-          toast.error('Error al eliminar la cita.');
-        }
-        setConfirmationModalState({ isOpen: false, title: '', message: '', onConfirm: null });
-      }
-    });
+    toast.error('La eliminación de citas no está disponible.');
+  };
+  
+  const updateAppointmentDate = async (eventId: string, newStartDate: Date, newEndDate: Date) => {
+    toast.error('La actualización de citas no está disponible.');
   };
 
   return (
     <div className="flex h-full bg-slate-50 dark:bg-slate-900">
-      <CalendarList calendars={userCalendars} visibleCalendars={visibleCalendarIds} onToggleCalendar={toggleCalendarVisibility} isVisible={isSidebarVisible} />
       <div className="flex flex-col flex-grow">
         <header className="flex flex-wrap justify-between items-center flex-shrink-0 gap-4 p-6 pb-4">
           <div className="flex items-center gap-2">
-            <button onClick={() => setIsSidebarVisible(!isSidebarVisible)} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
-              <PanelLeft className="h-5 w-5 text-slate-500 dark:text-slate-400" />
-            </button>
             <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Calendario de Citas</h2>
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
-
-
             <div className="flex items-center border border-slate-300 dark:border-slate-600 rounded-lg">
               <button onClick={() => handleViewChange('month')} className={`px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-l-md transition-colors ${currentView === 'month' ? 'bg-orange-500 text-white' : 'bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600'}`}>Mes</button>
               <button onClick={() => handleViewChange('week')} className={`px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-r-md border-l border-slate-300 dark:border-slate-600 transition-colors ${currentView === 'week' ? 'bg-orange-500 text-white' : 'bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600'}`}>Semana</button>
@@ -150,7 +110,7 @@ const CalendarViewWrapper: React.FC = () => {
         </header>
         <main className="flex-grow flex flex-col overflow-hidden p-6 pt-0">
           <div className="flex-grow flex flex-col bg-white dark:bg-slate-800 rounded-lg shadow-md overflow-hidden">
-            {isLoading && events.length === 0 ? (
+            {isLoading ? (
               <CalendarViewSkeleton />
             ) : error ? (
               <ErrorMessage message={error} />
