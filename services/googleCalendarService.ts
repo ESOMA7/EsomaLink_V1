@@ -71,7 +71,7 @@ export const loadGoogleApiService = (callback: () => void) => {
         });
 };
 
-export const initializeGapiClient = async (): Promise<void> => {
+export const initializeGapiClient = async (accessToken: string): Promise<void> => {
     if (!window.gapi) {
         throw new Error('Google API not loaded');
     }
@@ -86,6 +86,8 @@ export const initializeGapiClient = async (): Promise<void> => {
             apiKey: GAPI_API_KEY,
             discoveryDocs: [DISCOVERY_DOC],
         });
+        
+        window.gapi.client.setToken({ access_token: accessToken });
         
         console.log('Google API client initialized successfully');
         gapiInitialized = true;
