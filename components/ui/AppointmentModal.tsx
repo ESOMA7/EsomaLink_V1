@@ -23,8 +23,6 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ modalState, onClose
     const [eventDate, setEventDate] = useState(new Date());
     const [eventStartTime, setEventStartTime] = useState('09:00');
     const [eventEndTime, setEventEndTime] = useState('10:00');
-    const [showConfirmDelete, setShowConfirmDelete] = useState(false);
-
 
     useEffect(() => {
         if (event) {
@@ -84,14 +82,6 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ modalState, onClose
         }
     }, [event?.id, patient, procedure, professional, eventDate, eventStartTime, eventEndTime, onSave, onClose]);
 
-    const handleDelete = () => {
-        if (event && event.id) {
-            onDelete(event.id, event.title);
-            setShowConfirmDelete(false);
-            onClose(); // Cierra el modal principal
-        }
-    };
-    
     if (!isOpen) return null;
 
     return (
@@ -147,7 +137,7 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ modalState, onClose
                     <div className="bg-slate-50 dark:bg-slate-700/50 px-6 py-4 flex justify-between items-center">
                         <div>
                             {event && event.id && (
-                                <button type="button" onClick={() => setShowConfirmDelete(true)} className="inline-flex items-center px-4 py-2 bg-red-100 dark:bg-red-500/10 text-red-700 dark:text-red-400 text-sm font-medium rounded-md hover:bg-red-200 dark:hover:bg-red-500/20 transition-colors">
+                                <button type="button" onClick={() => onDelete(event.id, event.title)} className="inline-flex items-center px-4 py-2 bg-red-100 dark:bg-red-500/10 text-red-700 dark:text-red-400 text-sm font-medium rounded-md hover:bg-red-200 dark:hover:bg-red-500/20 transition-colors">
                                     <Trash2 className="h-4 w-4 mr-2" />
                                     Eliminar
                                 </button>
@@ -159,19 +149,6 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ modalState, onClose
                         </div>
                     </div>
                 </form>
-
-                {showConfirmDelete && (
-                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-60">
-                        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl p-6 max-w-sm mx-auto">
-                            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Eliminar Cita</h3>
-                            <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">¿Estás seguro de que deseas eliminar esta cita? Esta acción no se puede deshacer.</p>
-                            <div className="mt-6 flex justify-end space-x-3">
-                                <button onClick={() => setShowConfirmDelete(false)} className="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-600 rounded-md hover:bg-slate-200 dark:hover:bg-slate-500 transition-colors">Cancelar</button>
-                                <button onClick={handleDelete} className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors">Confirmar</button>
-                            </div>
-                        </div>
-                    </div>
-                )}
             </div>
         </div>
     );

@@ -50,6 +50,23 @@ export const useAppointments = () => {
             if (session?.provider_token) {
                 fetchGoogleCalendarEvents(session.provider_token);
             }
+        },
+        deleteAppointment: async (eventId: string) => {
+            try {
+                // Encontrar el evento y su calendarId
+                const eventToDelete = events.find(event => event.id === eventId);
+                if (!eventToDelete || !eventToDelete.calendarId) {
+                    throw new Error('No se pudo encontrar el evento o el ID del calendario.');
+                }
+
+                await googleCalendarService.deleteEvent(eventToDelete.calendarId, eventId);
+                setEvents(prevEvents => prevEvents.filter(event => event.id !== eventId));
+                return { success: true };
+            } catch (err: any) {
+                console.error('Error deleting event:', err);
+                setError('Failed to delete event. Please try again.');
+                return { success: false, error: err.message };
+            }
         }
     };
 };

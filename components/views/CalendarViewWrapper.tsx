@@ -11,7 +11,7 @@ import { toast } from 'react-hot-toast';
 import { useAppointments } from '../../hooks/useAppointments';
 
 const CalendarViewWrapper: React.FC = () => {
-  const { events, isLoading, error, refreshEvents } = useAppointments();
+  const { events, isLoading, error, refreshEvents, deleteAppointment } = useAppointments();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [appointmentModalState, setAppointmentModalState] = useState<{ isOpen: boolean; event: AppointmentEvent | null; date: Date | null; }>({ isOpen: false, event: null, date: null });
   const [confirmationModalState, setConfirmationModalState] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: (() => void) | null }>({ isOpen: false, title: '', message: '', onConfirm: null });
@@ -73,7 +73,19 @@ const CalendarViewWrapper: React.FC = () => {
   }, [currentDate]);
 
   const handleDeleteAppointment = (id: string | number, title: string) => {
-    toast.error('La eliminación de citas no está disponible.');
+    setConfirmationModalState({
+      isOpen: true,
+      title: 'Confirmar Eliminación',
+      message: `¿Estás seguro de que quieres eliminar la cita "${title}"?`,
+      onConfirm: async () => {
+        const result = await deleteAppointment(id.toString());
+        if (result.success) {
+          toast.success('Cita eliminada correctamente.');
+          setAppointmentModalState({ isOpen: false, event: null, date: null });
+        }
+        setConfirmationModalState({ isOpen: false, title: '', message: '', onConfirm: null });
+      },
+    });
   };
   
   const updateAppointmentDate = async (eventId: string, newStartDate: Date, newEndDate: Date) => {
