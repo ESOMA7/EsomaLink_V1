@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, PanelLeft } from 'lucide-react';
-import { AppointmentEvent, Calendar } from '../../types';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { AppointmentEvent } from '../../types';
 import MonthView from '../calendar/MonthView';
 import WeekView from '../calendar/WeekView';
 import { CalendarViewSkeleton } from '../ui/LoadingSkeletons';
@@ -8,21 +8,15 @@ import { ErrorMessage } from '../ui/ErrorMessage';
 import AppointmentModal from '../ui/AppointmentModal';
 import ConfirmationModal from '../ui/ConfirmationModal';
 import { toast } from 'react-hot-toast';
+import { useAppointments } from '../../hooks/useAppointments';
 
 const CalendarViewWrapper: React.FC = () => {
-  const [events, setEvents] = useState<AppointmentEvent[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [userCalendars, setUserCalendars] = useState<Calendar[]>([]);
-
-  const [currentDate, setCurrentDate] = useState(new Date(2025, 6, 2));
+  const { events, isLoading, error, refreshEvents } = useAppointments();
+  const [currentDate, setCurrentDate] = useState(new Date());
   const [appointmentModalState, setAppointmentModalState] = useState<{ isOpen: boolean; event: AppointmentEvent | null; date: Date | null; }>({ isOpen: false, event: null, date: null });
   const [confirmationModalState, setConfirmationModalState] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: (() => void) | null }>({ isOpen: false, title: '', message: '', onConfirm: null });
   const [currentView, setCurrentView] = useState<'month' | 'week'>('month');
-  const [isSidebarVisible, setIsSidebarVisible] = useState(false);
   const [selectedDate, setSelectedDate] = useState(currentDate);
-
-  const filteredEvents: AppointmentEvent[] = []; // Always empty
 
   const changeDate = (amount: number) => {
     setCurrentDate(prev => {
@@ -119,14 +113,14 @@ const CalendarViewWrapper: React.FC = () => {
                 {currentView === 'month' ? (
                   <MonthView 
                     currentDate={currentDate} 
-                    events={filteredEvents}
+                    events={events}
                     onDayClick={handleSlotClick}
                     onEventClick={handleEventClick}
                   />
                 ) : (
                   <WeekView
                     currentDate={currentDate}
-                    events={filteredEvents}
+                    events={events}
                     onEventClick={handleEventClick}
                     onUpdateAppointmentDate={updateAppointmentDate}
                     onSlotClick={handleSlotClick}
@@ -144,7 +138,7 @@ const CalendarViewWrapper: React.FC = () => {
         onClose={() => setAppointmentModalState({ isOpen: false, event: null, date: null })} 
         onSave={handleSaveAppointment} 
         onDelete={handleDeleteAppointment} 
-        calendars={userCalendars}
+        calendars={[]}
       />
       <ConfirmationModal 
         modalState={confirmationModalState} 

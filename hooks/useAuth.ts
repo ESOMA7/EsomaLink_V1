@@ -61,6 +61,7 @@ const saveGoogleAccessToken = async (accessToken: string, userId: string) => {
 
 export const useAuth = () => {
     const [user, setUser] = useState<AppUser | null>(null);
+    const [session, setSession] = useState<any | null>(null); // Add session state
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [isAuthLoading, setIsLoading] = useState(true);
     const [authError, setAuthError] = useState<string | null>(null);
@@ -71,6 +72,7 @@ export const useAuth = () => {
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (event, session) => {
                 console.log('[useAuth] Auth state change:', { event, hasSession: !!session });
+                setSession(session); // Store the session
                 
                 try {
                     const supabaseUser = session?.user;
@@ -151,5 +153,5 @@ export const useAuth = () => {
         // onAuthStateChange se encargará de actualizar el estado a "no autenticado"
     }, []);
 
-    return { user, isAuthenticated, isAuthLoading, authError, setAuthError, loginWithGoogle, logout };
+    return { user, session, isAuthenticated, isAuthLoading, authError, setAuthError, loginWithGoogle, logout }; // Return session
 };
