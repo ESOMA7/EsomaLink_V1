@@ -126,6 +126,27 @@ export const useAppointments = (currentDate: Date, currentView: 'month' | 'week'
         }
     }, [events]);
 
+    const updateAppointment = useCallback(async (appointmentData: AppointmentEvent) => {
+        try {
+            const calendar = calendars.find(c => c.summary === appointmentData.professional);
+            if (!calendar) {
+                throw new Error('No se pudo encontrar el calendario para el profesional seleccionado.');
+            }
+
+            if (!appointmentData.id) {
+                throw new Error('El ID del evento es indefinido.');
+            }
+
+            const updatedEvent = await googleCalendarService.updateEvent(calendar.id, appointmentData.id.toString(), appointmentData);
+            setEvents(prevEvents => prevEvents.map(event => event.id === updatedEvent.id ? { ...updatedEvent, calendarId: calendar.id } : event));
+            return { success: true };
+        } catch (err: any) {
+            console.error('Error updating event:', err);
+            setError('Failed to update event. Please try again.');
+            return { success: false, error: err.message };
+        }
+    }, [calendars]);
+
     return {
         events,
         isLoading,
@@ -133,6 +154,7 @@ export const useAppointments = (currentDate: Date, currentView: 'month' | 'week'
         calendars,
         refreshEvents,
         createAppointment,
-        deleteAppointment
+        deleteAppointment,
+        updateAppointment
     };
 };

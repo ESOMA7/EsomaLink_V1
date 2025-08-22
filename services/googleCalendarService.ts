@@ -197,9 +197,9 @@ export const listUpcomingEvents = async (calendarId: string = 'primary', calenda
         start: new Date(event.start.dateTime || event.start.date),
         end: new Date(event.end.dateTime || event.end.date),
         color: calendarColor, // This might be undefined, but the hook will assign the correct one
-        professional: 'José', // Placeholder
-        patient: 'N/A', // Placeholder
-        procedure: event.summary || 'N/A',
+        professional: '', // Placeholder
+        patient: event.summary, // Placeholder
+        procedure: event.description,
         whatsapp: '',
         estado: 'confirmed',
     })) || [];
@@ -211,7 +211,8 @@ export const createEvent = async (calendarId: string, event: Omit<AppointmentEve
     }
 
     const resource = {
-        summary: `${event.patient} - ${event.procedure}`,
+        summary: event.patient,
+        description: event.procedure,
         start: {
             dateTime: event.start.toISOString(),
             timeZone: 'America/Mexico_City',
@@ -220,11 +221,37 @@ export const createEvent = async (calendarId: string, event: Omit<AppointmentEve
             dateTime: event.end.toISOString(),
             timeZone: 'America/Mexico_City',
         },
-        // You can add more event properties here, like description, attendees, etc.
     };
 
     const response = await window.gapi.client.calendar.events.insert({
         calendarId: calendarId,
+        resource: resource,
+    });
+
+    return response.result;
+};
+
+export const updateEvent = async (calendarId: string, eventId: string, event: Omit<AppointmentEvent, 'id' | 'title'>) => {
+    if (!window.gapi.client.calendar) {
+        throw new Error('Google Calendar API client not initialized.');
+    }
+
+    const resource = {
+        summary: event.patient,
+        description: event.procedure,
+        start: {
+            dateTime: event.start.toISOString(),
+            timeZone: 'America/Mexico_City',
+        },
+        end: {
+            dateTime: event.end.toISOString(),
+            timeZone: 'America/Mexico_City',
+        },
+    };
+
+    const response = await window.gapi.client.calendar.events.update({
+        calendarId: calendarId,
+        eventId: eventId,
         resource: resource,
     });
 

@@ -14,7 +14,7 @@ import DayView from '../calendar/DayView';
 const CalendarViewWrapper: React.FC = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [currentView, setCurrentView] = useState<'month' | 'week' | 'day'>('month');
-  const { events, isLoading, error, refreshEvents, deleteAppointment, createAppointment, calendars } = useAppointments(currentDate, currentView);
+  const { events, isLoading, error, refreshEvents, deleteAppointment, createAppointment, calendars, updateAppointment } = useAppointments(currentDate, currentView);
   const [appointmentModalState, setAppointmentModalState] = useState<{ isOpen: boolean; event: AppointmentEvent | null; date: Date | null; }>({ isOpen: false, event: null, date: null });
   const [confirmationModalState, setConfirmationModalState] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: (() => void) | null }>({ isOpen: false, title: '', message: '', onConfirm: null });
   const [selectedDate, setSelectedDate] = useState(currentDate);
@@ -60,12 +60,15 @@ const CalendarViewWrapper: React.FC = () => {
   };
 
   const handleSaveAppointment = async (data: Omit<AppointmentEvent, 'title' | 'id'> & { id?: string | number }) => {
-    const result = await createAppointment(data);
+    const result = data.id
+      ? await updateAppointment({ ...data, id: data.id, title: `${data.patient} - ${data.procedure}` } as AppointmentEvent)
+      : await createAppointment(data);
+
     if (result.success) {
-      toast.success('Cita creada correctamente.');
+      toast.success(data.id ? 'Cita actualizada correctamente.' : 'Cita creada correctamente.');
       setAppointmentModalState({ isOpen: false, event: null, date: null });
     } else {
-      toast.error(result.error || 'No se pudo crear la cita. Verifique los permisos del calendario.');
+      toast.error(result.error || (data.id ? 'No se pudo actualizar la cita.' : 'No se pudo crear la cita.'));
     }
     return result;
   };

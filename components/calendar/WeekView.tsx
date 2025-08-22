@@ -164,7 +164,7 @@ const WeekView: React.FC<WeekViewProps> = ({ currentDate, events, onEventClick, 
                                         backgroundColor: event.color || '#3b82f6'
                                     }}
                                 >
-                                    <p className="font-semibold truncate">{event.procedure}</p>
+                                    <p className="font-semibold truncate">{event.patient}</p>
                                     <p className="truncate">{event.patient}</p>
                                 </div>
                             );

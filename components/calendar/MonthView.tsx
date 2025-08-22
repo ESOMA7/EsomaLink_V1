@@ -133,7 +133,7 @@ const MonthView: React.FC<MonthViewProps> = ({ currentDate, events, onDayClick, 
                                         style={{ backgroundColor: event.color || getEventColor(event.professional) }}
                                         className={`p-1 rounded text-white text-[10px] leading-tight cursor-pointer`}
                                     >
-                                        <p className="font-semibold truncate">{event.procedure}</p>
+                                        <p className="font-semibold truncate">{event.patient}</p>
                                         <p className="truncate">{new Date(event.start).toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit', hour12: false })}</p>
                                     </div>
                                 ))}
