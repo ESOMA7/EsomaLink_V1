@@ -180,7 +180,6 @@ export const listUpcomingEvents = async (calendarId: string = 'primary', calenda
     }
     const response = await window.gapi.client.calendar.events.list({
         'calendarId': calendarId,
-        'timeMin': (new Date()).toISOString(),
         'showDeleted': false,
         'singleEvents': true,
         'maxResults': 250,

@@ -6,6 +6,7 @@ import { useAuth } from './useAuth'; // Import useAuth to get the token
 export const useAppointments = () => {
     const { session } = useAuth(); // Use the session from useAuth
     const [events, setEvents] = useState<AppointmentEvent[]>([]);
+    const [calendars, setCalendars] = useState<Calendar[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -16,9 +17,11 @@ export const useAppointments = () => {
             // Initialize the gapi client with the access token
             await googleCalendarService.initializeGapiClient(accessToken);
             
-            const calendars = await googleCalendarService.listUserCalendars();
-            if (calendars && calendars.length > 0) {
-                const allEventsPromises = calendars.map(calendar => 
+            const userCalendars = await googleCalendarService.listUserCalendars();
+            setCalendars(userCalendars || []);
+
+            if (userCalendars && userCalendars.length > 0) {
+                const allEventsPromises = userCalendars.map(calendar => 
                     googleCalendarService.listUpcomingEvents(calendar.id, calendar.backgroundColor)
                 );
                 const eventsArrays = await Promise.all(allEventsPromises);
@@ -46,9 +49,26 @@ export const useAppointments = () => {
         events,
         isLoading,
         error,
+        calendars,
         refreshEvents: () => {
             if (session?.provider_token) {
                 fetchGoogleCalendarEvents(session.provider_token);
+            }
+        },
+        createAppointment: async (appointmentData: Omit<AppointmentEvent, 'id' | 'title'>) => {
+            try {
+                const calendar = calendars.find(c => c.summary === appointmentData.professional);
+                if (!calendar) {
+                    throw new Error('No se pudo encontrar el calendario para el profesional seleccionado.');
+                }
+
+                const newEvent = await googleCalendarService.createEvent(calendar.id, appointmentData);
+                setEvents(prevEvents => [...prevEvents, { ...newEvent, calendarId: calendar.id }]);
+                return { success: true };
+            } catch (err: any) {
+                console.error('Error creating event:', err);
+                setError('Failed to create event. Please try again.');
+                return { success: false, error: err.message };
             }
         },
         deleteAppointment: async (eventId: string) => {

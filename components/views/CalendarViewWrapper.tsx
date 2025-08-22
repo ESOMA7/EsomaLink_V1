@@ -11,7 +11,7 @@ import { toast } from 'react-hot-toast';
 import { useAppointments } from '../../hooks/useAppointments';
 
 const CalendarViewWrapper: React.FC = () => {
-  const { events, isLoading, error, refreshEvents, deleteAppointment } = useAppointments();
+  const { events, isLoading, error, refreshEvents, deleteAppointment, createAppointment, calendars } = useAppointments();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [appointmentModalState, setAppointmentModalState] = useState<{ isOpen: boolean; event: AppointmentEvent | null; date: Date | null; }>({ isOpen: false, event: null, date: null });
   const [confirmationModalState, setConfirmationModalState] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: (() => void) | null }>({ isOpen: false, title: '', message: '', onConfirm: null });
@@ -57,8 +57,12 @@ const CalendarViewWrapper: React.FC = () => {
   };
 
   const handleSaveAppointment = async (data: Omit<AppointmentEvent, 'title' | 'id'> & { id?: string | number }) => {
-    toast.error('La creación de citas no está disponible.');
-    return { success: false };
+    const result = await createAppointment(data);
+    if (result.success) {
+      toast.success('Cita creada correctamente.');
+      setAppointmentModalState({ isOpen: false, event: null, date: null });
+    }
+    return result;
   };
 
   const handleViewChange = (view: 'month' | 'week') => {
@@ -151,7 +155,7 @@ const CalendarViewWrapper: React.FC = () => {
         onClose={() => setAppointmentModalState({ isOpen: false, event: null, date: null })} 
         onSave={handleSaveAppointment} 
         onDelete={handleDeleteAppointment} 
-        calendars={[]}
+        calendars={calendars}
       />
       <ConfirmationModal 
         modalState={confirmationModalState} 
