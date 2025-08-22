@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import { AppointmentEvent } from '../../types';
 import MonthView from '../calendar/MonthView';
 import WeekView from '../calendar/WeekView';
@@ -93,6 +93,7 @@ const CalendarViewWrapper: React.FC = () => {
               <button onClick={() => handleViewChange('week')} className={`px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-r-md border-l border-slate-300 dark:border-slate-600 transition-colors ${currentView === 'week' ? 'bg-orange-500 text-white' : 'bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600'}`}>Semana</button>
             </div>
             <button onClick={() => setCurrentDate(new Date())} className="px-3 py-2 text-xs sm:text-sm font-semibold bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-600 transition-colors">Hoy</button>
+            <button onClick={() => refreshEvents()} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"><RefreshCw className="h-5 w-5" /></button>
             <div className="flex items-center">
               <button onClick={() => changeDate(-1)} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"><ChevronLeft className="h-5 w-5" /></button>
               <span className="text-base sm:text-lg font-semibold text-slate-700 dark:text-slate-200 w-32 sm:w-40 text-center">
