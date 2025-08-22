@@ -9,6 +9,7 @@ import AppointmentModal from '../ui/AppointmentModal';
 import ConfirmationModal from '../ui/ConfirmationModal';
 import { toast } from 'react-hot-toast';
 import { useAppointments } from '../../hooks/useAppointments';
+import DayView from '../calendar/DayView';
 
 const CalendarViewWrapper: React.FC = () => {
   const { events, isLoading, error, refreshEvents, deleteAppointment, createAppointment, calendars } = useAppointments();
@@ -23,6 +24,8 @@ const CalendarViewWrapper: React.FC = () => {
       const newDate = new Date(prev);
       if (currentView === 'week') {
         newDate.setDate(newDate.getDate() + (amount * 7));
+      } else if (currentView === 'day') {
+        newDate.setDate(newDate.getDate() + amount);
       } else {
         newDate.setMonth(newDate.getMonth() + amount);
       }
@@ -108,9 +111,10 @@ const CalendarViewWrapper: React.FC = () => {
           <div className="flex items-center gap-2 sm:gap-4">
             <div className="flex items-center border border-slate-300 dark:border-slate-600 rounded-lg">
               <button onClick={() => handleViewChange('month')} className={`px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-l-md transition-colors ${currentView === 'month' ? 'bg-orange-500 text-white' : 'bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600'}`}>Mes</button>
-              <button onClick={() => handleViewChange('week')} className={`px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-r-md border-l border-slate-300 dark:border-slate-600 transition-colors ${currentView === 'week' ? 'bg-orange-500 text-white' : 'bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600'}`}>Semana</button>
+              <button onClick={() => handleViewChange('week')} className={`px-3 py-1.5 text-xs sm:text-sm font-semibold border-l border-slate-300 dark:border-slate-600 transition-colors ${currentView === 'week' ? 'bg-orange-500 text-white' : 'bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600'}`}>Semana</button>
+              <button onClick={() => handleViewChange('day')} className={`px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-r-md border-l border-slate-300 dark:border-slate-600 transition-colors ${currentView === 'day' ? 'bg-orange-500 text-white' : 'bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600'}`}>Día</button>
             </div>
-            <button onClick={() => setCurrentDate(new Date())} className="px-3 py-2 text-xs sm:text-sm font-semibold bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-600 transition-colors">Hoy</button>
+
             <button onClick={() => refreshEvents()} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"><RefreshCw className="h-5 w-5" /></button>
             <div className="flex items-center">
               <button onClick={() => changeDate(-1)} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"><ChevronLeft className="h-5 w-5" /></button>
@@ -136,7 +140,7 @@ const CalendarViewWrapper: React.FC = () => {
                     onDayClick={handleSlotClick}
                     onEventClick={handleEventClick}
                   />
-                ) : (
+                ) : currentView === 'week' ? (
                   <WeekView
                     currentDate={currentDate}
                     events={events}
@@ -145,6 +149,13 @@ const CalendarViewWrapper: React.FC = () => {
                     onSlotClick={handleSlotClick}
                     selectedDate={selectedDate}
                     onDateSelect={setSelectedDate}
+                  />
+                ) : (
+                  <DayView
+                    currentDate={currentDate}
+                    events={events}
+                    onEventClick={handleEventClick}
+                    onSlotClick={handleSlotClick}
                   />
                 )}
               </>
