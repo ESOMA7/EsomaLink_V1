@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, RefreshCw, ChevronDown } from 'lucide-react';
+import { ChevronLeft, ChevronRight, RefreshCw, ChevronDown, Calendar as CalendarIcon } from 'lucide-react';
 import { AppointmentEvent } from '../../types';
 import MonthView from '../calendar/MonthView';
 import WeekView from '../calendar/WeekView';
@@ -129,6 +129,7 @@ const CalendarViewWrapper: React.FC = () => {
           <div className="flex items-center gap-2 sm:gap-4">
             <div className="relative">
               <button onClick={() => setIsCalendarDropdownOpen(!isCalendarDropdownOpen)} className="flex items-center gap-2 px-3 py-1.5 text-xs sm:text-sm font-semibold bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-300 dark:border-slate-600 rounded-lg transition-colors">
+                <CalendarIcon className="h-4 w-4" />
                 <span>Calendarios</span>
                 <ChevronDown className={`h-4 w-4 transition-transform ${isCalendarDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
