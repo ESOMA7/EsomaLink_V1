@@ -1,215 +1,124 @@
-
-import React, { useState, useCallback, useEffect } from 'react';
-import { AppointmentEvent, Intervention, Payment, View, Note } from './types';
-import { NOTIFICATION_SOUND_URL } from './constants';
+import React, { useState, useEffect, useCallback } from 'react';
+import { BrowserRouter as Router } from 'react-router-dom';
 import { Sidebar } from './components/Sidebar';
-import DashboardView from './components/views/DashboardView';
-import CalendarView from './components/views/CalendarView';
-import PaymentsView from './components/views/PaymentsView';
-import InterventionsView from './components/views/InterventionsView';
-import DriveView from './components/views/DriveView';
-import NotesView from './components/views/NotesView';
-import ConfirmationModal from './components/ui/ConfirmationModal';
-import AppointmentModal from './components/ui/AppointmentModal';
-import GeminiModal from './components/ui/GeminiModal';
-import InterventionModal from './components/ui/AddInterventionModal';
 import LoginView from './components/views/LoginView';
+import AppRoutes from './routes/AppRoutes';
+import ConfirmationModal from './components/ui/ConfirmationModal';
+import AddInterventionModal from './components/ui/AddInterventionModal';
 import AddPaymentModal from './components/ui/AddPaymentModal';
-
-import { useAuth } from './hooks/useAuth';
-import { useAppointments } from './hooks/useAppointments';
-import { useInterventions } from './hooks/useInterventions';
-import { usePayments } from './hooks/usePayments';
-import { useNotes } from './hooks/useNotes';
+import AddWaitingPatientModal from './components/ui/AddWaitingPatientModal';
+import { useAuth } from '@/hooks';
+import { Intervention, Payment, WaitingPatient, View } from './types';
+import { Toaster, toast } from 'react-hot-toast';
 import { LoaderCircle } from 'lucide-react';
 
-
 const App: React.FC = () => {
-    const [currentView, setCurrentView] = useState<View>('dashboard');
-    
-    // Custom Hooks for state management
-    const { user, isAuthenticated, loginWithGoogle, logout, isAuthLoading, authError, setAuthError } = useAuth();
-    const { events, saveAppointment, deleteAppointment, updateAppointmentDate, isLoading: appointmentsLoading, error: appointmentsError } = useAppointments();
-    const { interventions, saveIntervention, deleteIntervention, updateInterventionStatus, isLoading: interventionsLoading, error: interventionsError } = useInterventions();
-    const { payments, savePayment, deletePayment, isLoading: paymentsLoading, error: paymentsError } = usePayments();
-    const { notes, saveNote: doSaveNote, deleteNote: doDeleteNote, isLoading: notesLoading, error: notesError } = useNotes();
+    const { isAuthenticated, isAuthLoading, authError, setAuthError, loginWithGoogle, logout: supabaseLogout } = useAuth();
 
-    // Settings State
-    const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches));
-    const [areNotificationsEnabled, setAreNotificationsEnabled] = useState(() => localStorage.getItem('notifications') !== 'false');
+    // Removed currentView state as we now use React Router
+    const [theme, setTheme] = useState<'light' | 'dark'>(() => (localStorage.getItem('theme') as 'light' | 'dark') || 'light');
+    const [areNotificationsEnabled, setAreNotificationsEnabled] = useState(() => localStorage.getItem('notifications') === 'true');
+    const [tempInterventions, setTempInterventions] = useState<Intervention[]>([]);
+
+    // No data fetching hooks here anymore - moved to individual wrappers
+
+    const [interventionModalState, setInterventionModalState] = useState<{ isOpen: boolean; intervention: Intervention | null; }>({ isOpen: false, intervention: null });
+    const [paymentModalState, setPaymentModalState] = useState<{ isOpen: boolean; payment: Payment | null; }>({ isOpen: false, payment: null });
+    const [waitingPatientModalState, setWaitingPatientModalState] = useState<{ isOpen: boolean; patient: WaitingPatient | null; }>({ isOpen: false, patient: null });
+    // Removed selectedInterventionIds as it's now handled in wrapper
+    const [confirmationModalState, setConfirmationModalState] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: (() => void) | null }>({ isOpen: false, title: '', message: '', onConfirm: null });
 
     useEffect(() => {
-        document.documentElement.classList.toggle('dark', isDarkMode);
-        localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
-    }, [isDarkMode]);
+        const root = window.document.documentElement;
+        root.classList.remove(theme === 'light' ? 'dark' : 'light');
+        root.classList.add(theme);
+        localStorage.setItem('theme', theme);
+    }, [theme]);
 
     useEffect(() => {
         localStorage.setItem('notifications', String(areNotificationsEnabled));
     }, [areNotificationsEnabled]);
 
-    // Modal States
-    const [confirmationModal, setConfirmationModal] = useState<{ isOpen: boolean; message: string; onConfirm: (() => void) | null }>({ isOpen: false, message: '', onConfirm: null });
-    const [appointmentModal, setAppointmentModal] = useState<{ isOpen: boolean; event: AppointmentEvent | null; date: Date | null; }>({ isOpen: false, event: null, date: null });
-    const [geminiModal, setGeminiModal] = useState<{ isOpen: boolean; intervention: Intervention | null }>({ isOpen: false, intervention: null });
-    const [interventionModal, setInterventionModal] = useState<{ isOpen: boolean; intervention: Intervention | null; }>({ isOpen: false, intervention: null });
-    const [paymentModal, setPaymentModal] = useState<{ isOpen: boolean }>({ isOpen: false });
-
-    // Action Handlers
-    const playNotification = useCallback(() => {
-        if (areNotificationsEnabled) {
-            new Audio(NOTIFICATION_SOUND_URL).play().catch(console.error);
-        }
-    }, [areNotificationsEnabled]);
-
-    const handleLogout = useCallback(() => {
-        setConfirmationModal({
+    const handleLogout = () => {
+        setConfirmationModalState({
             isOpen: true,
-            message: '¿Estás seguro de que deseas cerrar la sesión?',
+            title: 'Cerrar Sesión',
+            message: '¿Estás seguro de que deseas cerrar sesión?',
             onConfirm: async () => {
-                await logout();
-                setConfirmationModal({ isOpen: false, message: '', onConfirm: null });
-            },
+                await supabaseLogout();
+                setConfirmationModalState({ isOpen: false, title: '', message: '', onConfirm: null });
+            }
         });
-    }, [logout]);
-
-    const handleSaveAppointment = useCallback(async (data: Omit<AppointmentEvent, 'title' | 'id'> & {id?:number}) => {
-        await saveAppointment(data);
-        setAppointmentModal({ isOpen: false, event: null, date: null });
-    }, [saveAppointment]);
-
-    const handleDeleteAppointment = useCallback((eventId: number, eventTitle: string) => {
-        setConfirmationModal({ isOpen: true, message: `¿Estás seguro de que deseas eliminar la cita "${eventTitle}"?`, onConfirm: async () => {
-            await deleteAppointment(eventId);
-            setAppointmentModal({ isOpen: false, event: null, date: null });
-            setConfirmationModal({ isOpen: false, message: '', onConfirm: null });
-        }});
-    }, [deleteAppointment]);
-    
-    const handleSavePayment = useCallback(async (data: Omit<Payment, 'id' | 'date' | 'transaction_id'>) => {
-        await savePayment(data);
-        playNotification();
-        setPaymentModal({ isOpen: false });
-    }, [savePayment, playNotification]);
-
-    const handleDeletePayment = useCallback((paymentId: number, patientName: string) => {
-        setConfirmationModal({ isOpen: true, message: `¿Estás seguro de que deseas eliminar el pago de "${patientName}"?`, onConfirm: async () => {
-            await deletePayment(paymentId);
-            setConfirmationModal({ isOpen: false, message: '', onConfirm: null });
-        }});
-    }, [deletePayment]);
-
-    const handleSaveIntervention = useCallback(async (data: { id?: number; patient: string; phone: string; reason: string; }) => {
-        await saveIntervention(data);
-        if(!data.id) playNotification();
-        setInterventionModal({ isOpen: false, intervention: null });
-    }, [saveIntervention, playNotification]);
-    
-    const handleDeleteIntervention = useCallback((interventionId: number, patientName:string) => {
-        setConfirmationModal({ isOpen: true, message: `¿Estás seguro de que deseas eliminar la intervención de "${patientName}"?`, onConfirm: async () => {
-            await deleteIntervention(interventionId);
-            setConfirmationModal({ isOpen: false, message: '', onConfirm: null });
-        }});
-    }, [deleteIntervention]);
-
-    const handleSaveNote = useCallback(async (note: Note) => {
-        await doSaveNote(note);
-    }, [doSaveNote]);
-
-    const handleDeleteNote = useCallback((noteId: number, noteTitle: string) => {
-        setConfirmationModal({ isOpen: true, message: `¿Estás seguro de que deseas eliminar la nota "${noteTitle}"?`, onConfirm: async () => {
-            await doDeleteNote(noteId);
-            setConfirmationModal({ isOpen: false, message: '', onConfirm: null });
-        }});
-    }, [doDeleteNote]);
-
-
-    const renderView = () => {
-        switch (currentView) {
-            case 'dashboard':
-                return <DashboardView 
-                    interventions={interventions} 
-                    payments={payments} 
-                    appointments={events} 
-                    setCurrentView={setCurrentView} 
-                    isLoading={interventionsLoading || paymentsLoading || appointmentsLoading}
-                    error={interventionsError || paymentsError || appointmentsError}
-                />;
-            case 'calendar':
-                return <CalendarView 
-                            events={events} 
-                            onSlotClick={(date: Date) => setAppointmentModal({ isOpen: true, event: null, date })} 
-                            onEventClick={(event: AppointmentEvent) => setAppointmentModal({ isOpen: true, event, date: event.start })} 
-                            onUpdateAppointmentDate={updateAppointmentDate}
-                            isLoading={appointmentsLoading}
-                            error={appointmentsError}
-                        />;
-            case 'payments':
-                return <PaymentsView 
-                            payments={payments} 
-                            onDelete={handleDeletePayment} 
-                            onAdd={() => setPaymentModal({ isOpen: true })} 
-                            isLoading={paymentsLoading}
-                            error={paymentsError}
-                        />;
-            case 'interventions':
-                return <InterventionsView 
-                            interventions={interventions} 
-                            onUpdateStatus={updateInterventionStatus} 
-                            onDelete={handleDeleteIntervention}
-                            onGenerateResponse={(intervention: Intervention) => setGeminiModal({ isOpen: true, intervention })}
-                            onAdd={() => setInterventionModal({ isOpen: true, intervention: null })}
-                            onEdit={(intervention: Intervention) => setInterventionModal({ isOpen: true, intervention })}
-                            isLoading={interventionsLoading}
-                            error={interventionsError}
-                        />;
-            case 'drive':
-                return <DriveView />;
-            case 'notes':
-                return <NotesView 
-                            notes={notes}
-                            onSaveNote={handleSaveNote}
-                            onDeleteNote={handleDeleteNote}
-                            isLoading={notesLoading}
-                            error={notesError}
-                        />;
-            default:
-                return <DashboardView interventions={interventions} payments={payments} appointments={events} setCurrentView={setCurrentView} isLoading={false} error={null} />;
-        }
     };
 
+    // Modal handlers will be implemented in individual wrappers
+
+    // Removed other handlers as they're now in wrappers
+
+    const handleTestNewIntervention = () => {
+        if (areNotificationsEnabled) {
+            toast.success('¡Nueva intervención de prueba recibida!', { icon: '🔔' });
+            const audio = new Audio('/notification.mp3');
+            audio.play().catch(error => {
+                console.warn('No se pudo reproducir el sonido de notificación automáticamente:', error);
+            });
+        }
+
+        const fakeIntervention: Intervention = {
+            id: Math.random() * -1,
+            created_at: new Date().toISOString(),
+            nombre: 'Paciente de Prueba (Ficticio)',
+            caso: 'Esta es una intervención de prueba generada por el botón.',
+            estado: 'Pendiente',
+            fecha: new Date().toLocaleDateString('es-CO'),
+            updated_at: new Date().toISOString(),
+            numeros: 'N/A'
+        };
+
+        setTempInterventions(prev => [fakeIntervention, ...prev]);
+    };
+
+    // Removed renderView function as we now use React Router
+
     if (isAuthLoading) {
-        return (
-            <div className="flex h-screen w-full items-center justify-center bg-slate-100 dark:bg-slate-900">
-                <LoaderCircle className="h-12 w-12 animate-spin text-orange-500" />
-            </div>
-        );
+        return <div className="flex items-center justify-center h-screen bg-slate-50 dark:bg-slate-900"><LoaderCircle className="w-12 h-12 animate-spin text-blue-600" /></div>;
     }
-    
+
     if (!isAuthenticated) {
-        return <LoginView onLoginWithGoogle={loginWithGoogle} isLoading={false} error={authError} setError={setAuthError} />;
+        return <LoginView onLoginWithGoogle={loginWithGoogle} isLoading={isAuthLoading} error={authError} setError={setAuthError} />;
     }
 
     return (
-        <div className="flex h-screen font-sans text-slate-800 dark:text-slate-200">
-            <Sidebar 
-                currentView={currentView} 
-                setCurrentView={setCurrentView} 
-                onLogout={handleLogout}
-                isDarkMode={isDarkMode}
-                onToggleTheme={() => setIsDarkMode(prev => !prev)}
-                areNotificationsEnabled={areNotificationsEnabled}
-                onToggleNotifications={() => setAreNotificationsEnabled(prev => !prev)}
-            />
-            <main className="flex-1 p-4 sm:p-6 lg:p-8 flex flex-col overflow-y-auto">
-                {renderView()}
-            </main>
-            
-            <ConfirmationModal modalState={confirmationModal} setModalState={setConfirmationModal} />
-            <AppointmentModal modalState={appointmentModal} onClose={() => setAppointmentModal({ isOpen: false, event: null, date: null })} onSave={handleSaveAppointment} onDelete={handleDeleteAppointment} />
-            <GeminiModal modalState={geminiModal} onClose={() => setGeminiModal({ isOpen: false, intervention: null })} />
-            <InterventionModal modalState={interventionModal} onClose={() => setInterventionModal({ isOpen: false, intervention: null })} onSave={handleSaveIntervention} />
-            <AddPaymentModal modalState={paymentModal} onClose={() => setPaymentModal({ isOpen: false })} onSave={handleSavePayment} />
-        </div>
+        <Router>
+            <div className="flex h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-50">
+                <Toaster position="top-center" reverseOrder={false} />
+                <ConfirmationModal modalState={confirmationModalState} setModalState={setConfirmationModalState} />
+                <Sidebar
+                    onLogout={handleLogout}
+                    newInterventionAvailable={false} // Will be handled by dashboard wrapper
+                />
+                <main className="flex-1 p-6 overflow-auto">
+                    <AppRoutes
+                        setInterventionModalState={setInterventionModalState}
+                        setPaymentModalState={setPaymentModalState}
+                        setWaitingPatientModalState={setWaitingPatientModalState}
+                        setConfirmationModalState={setConfirmationModalState}
+                        tempInterventions={tempInterventions}
+                        setTempInterventions={setTempInterventions}
+                        onTestNewIntervention={handleTestNewIntervention}
+                        areNotificationsEnabled={areNotificationsEnabled}
+                        setAreNotificationsEnabled={setAreNotificationsEnabled}
+                        theme={theme}
+                        setTheme={setTheme}
+                    />
+                </main>
+
+                {/* Modals */}
+                <AddInterventionModal modalState={interventionModalState} onClose={() => setInterventionModalState({ isOpen: false, intervention: null })} onSave={() => {}} />
+                <AddPaymentModal modalState={paymentModalState} onClose={() => setPaymentModalState({ isOpen: false, payment: null })} onSave={() => {}} />
+                <AddWaitingPatientModal modalState={waitingPatientModalState} onClose={() => setWaitingPatientModalState({ isOpen: false, patient: null })} onSave={() => {}} />
+            </div>
+        </Router>
     );
 };
 

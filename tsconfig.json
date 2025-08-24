@@ -14,6 +14,10 @@
     "moduleDetection": "force",
     "noEmit": true,
     "allowJs": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"]
+    },
     "jsx": "react-jsx",
 
     /* Linting */
@@ -22,10 +26,6 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
-    "types": ["vite/client"], // <--- LÍNEA AÑADIDA PARA SOLUCIONAR EL PROBLEMA
-
-    "paths": {
-      "@/*" :  ["./*"]
-    }
+    "types": ["vite/client"]
   }
 }

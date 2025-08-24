@@ -1,58 +1,45 @@
 import React, { useState, useEffect } from 'react';
-import { Payment } from '../../types';
+import { WaitingPatient } from '../../types';
 import { X } from 'lucide-react';
 
-interface AddPaymentModalProps {
+interface AddWaitingPatientModalProps {
     modalState: {
         isOpen: boolean;
-        payment: Payment | null;
+        patient: WaitingPatient | null;
     };
     onClose: () => void;
-    onSave: (data: Omit<Payment, 'id' | 'fecha' | 'referencia' | 'creado_en' | 'id_usuario'>) => void;
+    onSave: (data: Omit<WaitingPatient, 'id' | 'fecha' | 'creado_en' | 'id_usuario'>) => void;
 }
 
-const AddPaymentModal: React.FC<AddPaymentModalProps> = ({ modalState, onClose, onSave }) => {
-    const bankOptions = [
-        'Bancolombia',
-        'Nequi',
-        'Daviplata',
-        'Davivienda',
-        'Banco de Bogotá',
-        'BBVA',
-        'Banco Agrario',
-        'Otro'
-    ];
-    const { isOpen, payment } = modalState;
+const AddWaitingPatientModal: React.FC<AddWaitingPatientModalProps> = ({ modalState, onClose, onSave }) => {
+    const { isOpen, patient } = modalState;
     
     const [nombre, setNombre] = useState('');
-    const [whatsapp, setWhatsapp] = useState('');
-    const [concepto, setConcepto] = useState('');
-    const [valor, setValor] = useState<number | ''>('');
-    const [banco, setBanco] = useState('');
+    const [telefono, setTelefono] = useState('');
+    const [caso, setCaso] = useState('');
+    const [estado, setEstado] = useState<'Pendiente' | 'En Proceso' | 'Resuelto'>('Pendiente');
 
     useEffect(() => {
-        if (isOpen && payment) {
-            setNombre(payment.nombre);
-            setWhatsapp(payment.whatsapp);
-            setConcepto(payment.concepto);
-            setValor(payment.valor);
-            setBanco(payment.banco);
+        if (isOpen && patient) {
+            setNombre(patient.nombre);
+            setTelefono(patient.telefono);
+            setCaso(patient.caso);
+            setEstado(patient.estado);
         } else {
             setNombre('');
-            setWhatsapp('');
-            setConcepto('');
-            setValor('');
-            setBanco('');
+            setTelefono('');
+            setCaso('');
+            setEstado('Pendiente');
         }
-    }, [payment, isOpen]);
+    }, [patient, isOpen]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!nombre.trim() || !concepto.trim() || valor === '' || Number(valor) <= 0 || !banco.trim()) {
+        if (!nombre.trim() || !caso.trim()) {
             return;
         }
-        const paymentData = { nombre, whatsapp, concepto, valor: Number(valor), banco };
-        onSave(paymentData);
+        const patientData = { nombre, telefono, caso, estado };
+        onSave(patientData);
         onClose();
     };
 
@@ -62,7 +49,7 @@ const AddPaymentModal: React.FC<AddPaymentModalProps> = ({ modalState, onClose, 
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
             <div className="bg-white dark:bg-slate-800 rounded-lg shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
                 <div className="flex justify-between items-center p-4 border-b border-slate-200 dark:border-slate-700">
-                    <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-100">{payment ? 'Editar Pago' : 'Añadir Nuevo Pago'}</h3>
+                    <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-100">{patient ? 'Editar Paciente' : 'Añadir Paciente en Espera'}</h3>
                     <button onClick={onClose} className="p-2 rounded-full text-slate-500 hover:bg-slate-200 dark:text-slate-400 dark:hover:bg-slate-700 transition-colors">
                         <X className="h-6 w-6" />
                     </button>
@@ -81,51 +68,38 @@ const AddPaymentModal: React.FC<AddPaymentModalProps> = ({ modalState, onClose, 
                             />
                         </div>
                         <div>
-                            <label htmlFor="whatsapp" className="block text-sm font-medium text-slate-700 dark:text-slate-300">WhatsApp</label>
+                            <label htmlFor="telefono" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Teléfono</label>
                             <input 
                                 type="text" 
-                                id="whatsapp" 
-                                value={whatsapp} 
-                                onChange={(e) => setWhatsapp(e.target.value)} 
+                                id="telefono" 
+                                value={telefono} 
+                                onChange={(e) => setTelefono(e.target.value)} 
                                 className="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500"
                             />
                         </div>
                         <div>
-                            <label htmlFor="concepto" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Concepto</label>
-                            <input 
-                                type="text" 
-                                id="concepto" 
-                                value={concepto} 
-                                onChange={(e) => setConcepto(e.target.value)} 
+                            <label htmlFor="caso" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Caso</label>
+                            <textarea 
+                                id="caso" 
+                                value={caso} 
+                                onChange={(e) => setCaso(e.target.value)} 
                                 className="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500"
                                 required 
+                                rows={3}
                             />
                         </div>
                         <div>
-                            <label htmlFor="valor" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Valor</label>
-                            <input 
-                                type="number" 
-                                id="valor" 
-                                value={valor} 
-                                onChange={(e) => setValor(e.target.value === '' ? '' : Number(e.target.value))} 
-                                className="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                required 
-                                placeholder="Ej: 150000"
-                            />
-                        </div>
-                                                <div>
-                            <label htmlFor="banco" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Banco</label>
+                            <label htmlFor="estado" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Estado</label>
                             <select 
-                                id="banco" 
-                                value={banco} 
-                                onChange={(e) => setBanco(e.target.value)} 
+                                id="estado" 
+                                value={estado} 
+                                onChange={(e) => setEstado(e.target.value as 'Pendiente' | 'En Proceso' | 'Resuelto')} 
                                 className="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500"
                                 required
                             >
-                                <option value="" disabled>Selecciona un banco</option>
-                                {bankOptions.map(option => (
-                                    <option key={option} value={option}>{option}</option>
-                                ))}
+                                <option value="Pendiente">Pendiente</option>
+                                <option value="En Proceso">En Proceso</option>
+                                <option value="Resuelto">Resuelto</option>
                             </select>
                         </div>
                     </div>
@@ -134,7 +108,7 @@ const AddPaymentModal: React.FC<AddPaymentModalProps> = ({ modalState, onClose, 
                             Cancelar
                         </button>
                         <button type="submit" className="px-4 py-2 bg-orange-600 text-white font-semibold rounded-lg shadow-sm hover:bg-orange-700 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500">
-                            {payment ? 'Guardar Cambios' : 'Guardar Pago'}
+                            {patient ? 'Guardar Cambios' : 'Guardar Paciente'}
                         </button>
                     </div>
                 </form>
@@ -143,4 +117,4 @@ const AddPaymentModal: React.FC<AddPaymentModalProps> = ({ modalState, onClose, 
     );
 };
 
-export default AddPaymentModal;
+export default AddWaitingPatientModal;

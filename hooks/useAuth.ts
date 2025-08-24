@@ -10,8 +10,58 @@ interface AppUser {
   name?: string;
 }
 
+// Funciones auxiliares fuera del componente para evitar re-creaciones
+const saveGoogleRefreshToken = async (refreshToken: string, userId: string) => {
+    console.log('[useAuth] saveGoogleRefreshToken called');
+    
+    try {
+        console.log('[useAuth] Attempting to save refresh token to Supabase...');
+        const { error } = await supabase
+            .from('notes')
+            .upsert({ 
+                user_id: userId,
+                title: 'google_refresh_token', 
+                content: refreshToken,
+                updatedAt: new Date().toISOString()
+            }, { onConflict: 'user_id,title' });
+
+        if (error) {
+            console.error('[useAuth] Error saving Google refresh token:', error);
+        } else {
+            console.log('[useAuth] Google refresh token saved successfully');
+        }
+    } catch (error) {
+        console.error('[useAuth] Exception saving Google refresh token:', error);
+    }
+};
+
+const saveGoogleAccessToken = async (accessToken: string, userId: string) => {
+    console.log('[useAuth] saveGoogleAccessToken called');
+    
+    try {
+        console.log('[useAuth] Attempting to save access token to Supabase...');
+        const { error } = await supabase
+            .from('notes')
+            .upsert({ 
+                user_id: userId,
+                title: 'google_access_token', 
+                content: accessToken,
+                updatedAt: new Date().toISOString()
+            }, { onConflict: 'user_id,title' });
+
+        if (error) {
+            console.error('[useAuth] Error saving Google access token:', error);
+        } else {
+            console.log('[useAuth] Google access token saved successfully');
+        }
+    } catch (error) {
+        console.error('[useAuth] Exception saving Google access token:', error);
+    }
+};
+
 export const useAuth = () => {
     const [user, setUser] = useState<AppUser | null>(null);
+    const [session, setSession] = useState<any | null>(null); // Add session state
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [isAuthLoading, setIsLoading] = useState(true);
     const [authError, setAuthError] = useState<string | null>(null);
@@ -20,21 +70,41 @@ export const useAuth = () => {
     useEffect(() => {
         // Esta función se ejecuta inmediatamente y cuando el estado de auth cambia (login/logout)
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
-            (_event, session) => {
-                const supabaseUser = session?.user;
-                if (supabaseUser) {
-                    setUser({
-                        id: supabaseUser.id,
-                        email: supabaseUser.email,
-                        name: supabaseUser.user_metadata?.full_name || supabaseUser.email,
-                    });
-                    setIsAuthenticated(true);
-                } else {
-                    setUser(null);
-                    setIsAuthenticated(false);
+            async (event, session) => {
+                console.log('[useAuth] Auth state change:', { event, hasSession: !!session });
+                setSession(session); // Store the session
+                
+                try {
+                    const supabaseUser = session?.user;
+                    if (supabaseUser) {
+                        console.log('[useAuth] Setting user data...');
+                        setUser({
+                            id: supabaseUser.id,
+                            email: supabaseUser.email,
+                            name: supabaseUser.user_metadata?.full_name || supabaseUser.email,
+                        });
+                        setIsAuthenticated(true);
+                        console.log('[useAuth] User authenticated successfully');
+
+                        // Si es un login con Google, guardar los tokens (COMPLETAMENTE DESHABILITADO PARA DEBUGGING)
+                        if (event === 'SIGNED_IN' && session?.provider_token) {
+                            console.log('[useAuth] Google login detected - token saving COMPLETELY DISABLED for debugging');
+                            console.log('[useAuth] Has access token:', !!session.provider_token);
+                            console.log('[useAuth] Has refresh token:', !!session.provider_refresh_token);
+                            console.log('[useAuth] Skipping token saving to isolate re-render issue');
+                        }
+                    } else {
+                        console.log('[useAuth] No user session, setting unauthenticated state');
+                        setUser(null);
+                        setIsAuthenticated(false);
+                    }
+                } catch (error) {
+                    console.error('[useAuth] Error in auth state change handler:', error);
+                } finally {
+                    // Ya sea que haya sesión o no, la carga inicial ha terminado
+                    console.log('[useAuth] Setting loading to false');
+                    setIsLoading(false);
                 }
-                // Ya sea que haya sesión o no, la carga inicial ha terminado
-                setIsLoading(false);
             }
         );
 
@@ -42,13 +112,20 @@ export const useAuth = () => {
         return () => subscription.unsubscribe();
     }, []);
     
-    // 3. Implementación REAL de login con Google
+    // 3. Implementación REAL de login con Google con scopes de calendario
     const loginWithGoogle = useCallback(async (): Promise<{ success: boolean; }> => {
         setIsLoading(true);
         setAuthError(null);
 
         const { error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
+            options: {
+                scopes: 'https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events',
+                queryParams: {
+                    access_type: 'offline',
+                    prompt: 'consent'
+                }
+            }
         });
 
         if (error) {
@@ -76,5 +153,5 @@ export const useAuth = () => {
         // onAuthStateChange se encargará de actualizar el estado a "no autenticado"
     }, []);
 
-    return { user, isAuthenticated, isAuthLoading, authError, setAuthError, loginWithGoogle, logout };
+    return { user, session, isAuthenticated, isAuthLoading, authError, setAuthError, loginWithGoogle, logout }; // Return session
 };

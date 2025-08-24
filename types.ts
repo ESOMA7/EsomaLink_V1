@@ -6,33 +6,42 @@ export interface User {
 }
 
 export interface AppointmentEvent {
-    id: number;
+    id: string | number; // Support both local (number) and Google (string) IDs
     title: string;
     start: Date;
     end: Date;
     professional: string;
     patient: string;
     procedure: string;
+    whatsapp: string;
+    estado: 'pending' | 'confirmed' | 'cancelled' | 'completed';
+    duration?: number; // Optional duration in minutes
+    color?: string; // Optional color for the event background
+    calendarId?: string; // ID of the calendar the event belongs to
 }
 
 export interface Intervention {
     id: number;
-    patient: string;
-    phone: string;
-    reason: string;
-    date: string;
-    status: 'Resuelto' | 'En Proceso' | 'Pendiente';
+    nombre: string;
+    numeros: string;
+    fecha: string;
+    caso: string;
+    estado: 'Pendiente' | 'En Proceso' | 'Resuelto';
+    created_at?: string;
+    updated_at?: string;
 }
 
 export interface Payment {
     id: number;
-    transaction_id: string;
-    patient: string;
+    referencia: string;
+    nombre: string;
     whatsapp: string;
-    para: string; // "Concept"
-    amount: number;
-    bank: string;
-    date: string;
+    concepto: string;
+    valor: number;
+    banco: string;
+    fecha: string;
+    creado_en?: string;
+    id_usuario?: string;
 }
 
 export interface Note {
@@ -42,4 +51,24 @@ export interface Note {
     updatedAt: string; // ISO string format
 }
 
-export type View = 'dashboard' | 'calendar' | 'payments' | 'interventions' | 'drive' | 'notes';
+export type View = 'dashboard' | 'calendar' | 'payments' | 'interventions' | 'drive' | 'notes' | 'waiting_patients' | 'settings';
+
+export interface UserCalendar {
+    id: string;
+    summary: string;
+    backgroundColor: string;
+    foregroundColor?: string;
+    primary?: boolean;
+    accessRole?: string;
+}
+
+export interface WaitingPatient {
+  id: number;
+  nombre: string;
+  telefono: string;
+  caso: string;
+  fecha: string;
+  estado: 'Pendiente' | 'En Proceso' | 'Resuelto';
+  id_usuario: string;
+  creado_en: string;
+}

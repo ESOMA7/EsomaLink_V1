@@ -1,17 +1,20 @@
-import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
+import path from 'path';
 
+// https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
-    const env = loadEnv(mode, '.', '');
-    return {
-      define: {
-        'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
+  // Load all env variables from the root directory
+  const env = loadEnv(mode, process.cwd(), '');
+
+  return {
+    define: {
+      // Expose all env variables to the client under import.meta.env
+      'import.meta.env': JSON.stringify(env),
+    },
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, '.'),
       },
-      resolve: {
-        alias: {
-          '@': path.resolve(__dirname, '.'),
-        }
-      }
-    };
+    },
+  };
 });

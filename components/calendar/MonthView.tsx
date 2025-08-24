@@ -9,7 +9,6 @@ interface MonthViewProps {
     events: AppointmentEvent[];
     onDayClick: (date: Date) => void;
     onEventClick: (event: AppointmentEvent) => void;
-    onUpdateAppointmentDate: (eventId: number, newStartDate: Date) => void;
 }
 
 interface PopoverState {
@@ -19,9 +18,8 @@ interface PopoverState {
     position: { top: number; left: number };
 }
 
-const MonthView: React.FC<MonthViewProps> = ({ currentDate, events, onDayClick, onEventClick, onUpdateAppointmentDate }) => {
-    const [draggedEvent, setDraggedEvent] = useState<AppointmentEvent | null>(null);
-    const [dropTargetDay, setDropTargetDay] = useState<Date | null>(null);
+const MonthView: React.FC<MonthViewProps> = ({ currentDate, events, onDayClick, onEventClick }) => {
+
     const [popover, setPopover] = useState<PopoverState | null>(null);
 
     const containerRef = useRef<HTMLDivElement>(null);
@@ -41,35 +39,30 @@ const MonthView: React.FC<MonthViewProps> = ({ currentDate, events, onDayClick, 
         };
     }, [popover]);
 
-    const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-    const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-    const startDayOfWeek = startOfMonth.getDay();
-    const daysInMonth = endOfMonth.getDate();
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+
+    const daysInMonth = lastDay.getDate();
+    const startDayOfWeek = (firstDay.getDay() + 6) % 7; // 0 = Monday, 6 = Sunday
 
     const calendarDays: (Date | null)[] = [];
+
+    // Add blank days for the first week
     for (let i = 0; i < startDayOfWeek; i++) {
         calendarDays.push(null);
     }
+
+    // Add days of the month
     for (let i = 1; i <= daysInMonth; i++) {
-        calendarDays.push(new Date(currentDate.getFullYear(), currentDate.getMonth(), i));
+        calendarDays.push(new Date(year, month, i));
     }
 
-    const weekDays = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-    const MOCK_TODAY = new Date(2025, 6, 2);
+    const weekDays = ['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB', 'DOM'];
+    const today = new Date();
 
-    const handleDrop = (e: React.DragEvent, dropDate: Date) => {
-        e.preventDefault();
-        const eventId = parseInt(e.dataTransfer.getData('text/plain'), 10);
-        const eventToMove = events.find(ev => ev.id === eventId);
-        
-        if (eventToMove) {
-            const newStartDate = new Date(dropDate);
-            newStartDate.setHours(eventToMove.start.getHours(), eventToMove.start.getMinutes(), eventToMove.start.getSeconds(), eventToMove.start.getMilliseconds());
-            onUpdateAppointmentDate(eventId, newStartDate);
-        }
-        setDraggedEvent(null);
-        setDropTargetDay(null);
-    };
+
 
     const handleShowMoreClick = (e: React.MouseEvent<HTMLButtonElement>, day: Date, dayEvents: AppointmentEvent[]) => {
         e.stopPropagation();
@@ -94,19 +87,18 @@ const MonthView: React.FC<MonthViewProps> = ({ currentDate, events, onDayClick, 
     };
 
     return (
-        <div className="h-full flex flex-col relative" ref={containerRef}>
+        <div ref={containerRef} className="h-full flex flex-col">
             <div className="grid grid-cols-7">
                 {weekDays.map(day => (
                     <div key={day} className="text-center font-semibold text-xs text-slate-500 dark:text-slate-400 pb-2 border-b border-slate-200 dark:border-slate-700">{day}</div>
                 ))}
             </div>
-            <div className="grid grid-cols-7 grid-rows-6 flex-grow gap-px bg-slate-200 dark:bg-slate-700">
+            <div className="grid grid-cols-7 flex-grow h-full">
                 {calendarDays.map((day, index) => {
                     if (!day) return <div key={index} className="bg-slate-50 dark:bg-slate-800/50"></div>;
 
-                    const isToday = day.toDateString() === MOCK_TODAY.toDateString();
+                    const isToday = day.toDateString() === today.toDateString();
                     const isCurrentMonth = day.getMonth() === currentDate.getMonth();
-                    const isDropTarget = dropTargetDay?.toDateString() === day.toDateString();
                     
                     const dayEvents = events
                         .filter(e => new Date(e.start).toDateString() === day.toDateString())
@@ -117,17 +109,12 @@ const MonthView: React.FC<MonthViewProps> = ({ currentDate, events, onDayClick, 
 
                     return (
                         <div 
-                            key={index} 
-                            className={`bg-white dark:bg-slate-800 p-1 relative flex flex-col group transition-colors duration-200 cursor-pointer 
-                                ${isDropTarget ? 'bg-orange-100 dark:bg-orange-500/20' : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
-                            onDragOver={(e) => e.preventDefault()}
-                            onDragEnter={() => setDropTargetDay(day)}
-                            onDragLeave={() => setDropTargetDay(null)}
-                            onDrop={(e) => handleDrop(e, day)}
-                            onClick={() => onDayClick(day)}
+                            key={day ? day.toISOString() : `empty-${index}`}
+                            className={`h-28 border-b border-r border-slate-200 dark:border-slate-700 p-1.5 flex flex-col ${isToday ? 'bg-blue-50 dark:bg-slate-800/50' : ''}`}
+                            onClick={() => day && onDayClick(day)}
                         >
                            <div className="flex justify-between items-start">
-                                <span className={`text-sm mb-1 ${isToday ? 'bg-orange-500 text-white rounded-full h-6 w-6 flex items-center justify-center font-bold' : isCurrentMonth ? 'text-slate-700 dark:text-slate-200' : 'text-slate-400 dark:text-slate-500'}`}>
+                                <span className={`text-xs w-6 h-6 flex items-center justify-center rounded-full ${isToday ? 'bg-orange-500 text-white font-bold' : isCurrentMonth ? 'text-slate-700 dark:text-slate-200' : 'text-slate-400 dark:text-slate-500'}`}>
                                     {day.getDate()}
                                 </span>
                                 <button 
@@ -140,15 +127,13 @@ const MonthView: React.FC<MonthViewProps> = ({ currentDate, events, onDayClick, 
                             </div>
                             <div className="flex-grow mt-1 space-y-1 overflow-y-auto">
                                 {eventsToShow.map(event => (
-                                    <div 
-                                        key={event.id} 
-                                        draggable
-                                        onDragStart={(e) => { e.stopPropagation(); e.dataTransfer.setData('text/plain', event.id.toString()); setDraggedEvent(event); }}
-                                        onDragEnd={(e) => { e.stopPropagation(); setDraggedEvent(null); setDropTargetDay(null); }}
+                                    <div
+                                        key={event.id}
                                         onClick={(e) => { e.stopPropagation(); onEventClick(event); }} 
-                                        className={`p-1 rounded text-white text-[10px] leading-tight cursor-grab ${getEventColor(event.professional)} ${draggedEvent?.id === event.id ? 'opacity-50' : ''}`}
+                                        style={{ backgroundColor: event.color || getEventColor(event.professional) }}
+                                        className={`p-1 rounded text-white text-[10px] leading-tight cursor-pointer`}
                                     >
-                                        <p className="font-semibold truncate">{event.procedure}</p>
+                                        <p className="font-semibold truncate">{event.patient}</p>
                                         <p className="truncate">{new Date(event.start).toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit', hour12: false })}</p>
                                     </div>
                                 ))}
@@ -189,7 +174,7 @@ const MonthView: React.FC<MonthViewProps> = ({ currentDate, events, onDayClick, 
                                     onClick={() => { onEventClick(event); setPopover(null); }}
                                     className={`w-full text-left p-2 rounded flex items-center hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors`}
                                 >
-                                    <span className={`w-2 h-2 flex-shrink-0 rounded-full mr-3 ${getEventColor(event.professional).split(' ')[0]}`}></span>
+                                    <span style={{ backgroundColor: event.color || getEventColor(event.professional) }} className={`w-2 h-2 flex-shrink-0 rounded-full mr-3`}></span>
                                     <div className="flex-grow text-xs">
                                         <p className="font-semibold text-slate-800 dark:text-slate-200 truncate">{event.procedure}</p>
                                         <p className="text-slate-500 dark:text-slate-400 truncate">

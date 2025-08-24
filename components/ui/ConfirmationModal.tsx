@@ -4,10 +4,11 @@ import { AlertTriangle, X } from 'lucide-react';
 interface ConfirmationModalProps {
     modalState: {
         isOpen: boolean;
+        title: string;
         message: string;
         onConfirm: (() => void) | null;
     };
-    setModalState: (state: { isOpen: boolean; message: string; onConfirm: (() => void) | null }) => void;
+    setModalState: (state: { isOpen: boolean; title: string; message: string; onConfirm: (() => void) | null }) => void;
 }
 
 const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ modalState, setModalState }) => {
@@ -20,7 +21,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ modalState, setMo
     };
 
     const handleCancel = () => {
-        setModalState({ isOpen: false, message: '', onConfirm: null });
+        setModalState({ isOpen: false, title: '', message: '', onConfirm: null });
     };
 
     return (
@@ -32,7 +33,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ modalState, setMo
                             <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400" />
                         </div>
                         <div className="ml-4 text-left flex-grow">
-                            <h3 className="text-lg leading-6 font-medium text-slate-900 dark:text-slate-100">Confirmar Acción</h3>
+                            <h3 className="text-lg leading-6 font-medium text-slate-900 dark:text-slate-100">{modalState.title}</h3>
                             <div className="mt-2">
                                 <p className="text-sm text-slate-600 dark:text-slate-300">{modalState.message}</p>
                             </div>
