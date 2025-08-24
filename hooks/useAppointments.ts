@@ -3,7 +3,7 @@ import { AppointmentEvent, Calendar } from '@/types';
 import * as googleCalendarService from '../services/googleCalendarService';
 import { useAuth } from './useAuth';
 
-export const useAppointments = (currentDate: Date, currentView: 'month' | 'week' | 'day', selectedCalendarIds: string[]) => {
+export const useAppointments = (currentDate: Date, currentView: 'month' | 'week' | 'day', selectedCalendarIds?: string[]) => {
     const { session } = useAuth();
     const [events, setEvents] = useState<AppointmentEvent[]>([]);
     const [calendars, setCalendars] = useState<Calendar[]>([]);
@@ -51,28 +51,34 @@ export const useAppointments = (currentDate: Date, currentView: 'month' | 'week'
             const userCalendars = await googleCalendarService.listUserCalendars();
             setCalendars(userCalendars || []);
 
-            if (userCalendars && userCalendars.length > 0 && selectedCalendarIds.length > 0) {
-                const calendarsToFetch = userCalendars.filter(c => selectedCalendarIds.includes(c.id));
+            if (userCalendars && userCalendars.length > 0) {
+                const calendarsToFetch = (selectedCalendarIds && selectedCalendarIds.length > 0)
+                    ? userCalendars.filter(c => selectedCalendarIds.includes(c.id))
+                    : userCalendars;
 
-                const allEventsPromises = calendarsToFetch.map(calendar => 
-                    googleCalendarService.listUpcomingEvents(
-                        calendar.id, 
-                        calendar.backgroundColor,
-                        timeMin.toISOString(),
-                        timeMax.toISOString()
-                    )
-                );
-                const eventsArrays = await Promise.all(allEventsPromises);
-                const combinedEvents = eventsArrays.flat();
-                
-                const uniqueEventsMap = new Map<string, AppointmentEvent>();
-                combinedEvents.forEach(event => {
-                    if (event.id) {
-                        uniqueEventsMap.set(event.id.toString(), event);
-                    }
-                });
-                const uniqueEvents = Array.from(uniqueEventsMap.values());
-                setEvents(uniqueEvents);
+                if (calendarsToFetch.length > 0) {
+                    const allEventsPromises = calendarsToFetch.map(calendar => 
+                        googleCalendarService.listUpcomingEvents(
+                            calendar.id, 
+                            calendar.backgroundColor,
+                            timeMin.toISOString(),
+                            timeMax.toISOString()
+                        )
+                    );
+                    const eventsArrays = await Promise.all(allEventsPromises);
+                    const combinedEvents = eventsArrays.flat();
+                    
+                    const uniqueEventsMap = new Map<string, AppointmentEvent>();
+                    combinedEvents.forEach(event => {
+                        if (event.id) {
+                            uniqueEventsMap.set(event.id.toString(), event);
+                        }
+                    });
+                    const uniqueEvents = Array.from(uniqueEventsMap.values());
+                    setEvents(uniqueEvents);
+                } else {
+                    setEvents([]);
+                }
             } else {
                 setEvents([]);
             }
