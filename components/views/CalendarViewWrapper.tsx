@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, RefreshCw, ChevronDown } from 'lucide-react';
 import { AppointmentEvent } from '../../types';
 import MonthView from '../calendar/MonthView';
 import WeekView from '../calendar/WeekView';
@@ -18,6 +18,7 @@ const CalendarViewWrapper: React.FC = () => {
   const [appointmentModalState, setAppointmentModalState] = useState<{ isOpen: boolean; event: AppointmentEvent | null; date: Date | null; }>({ isOpen: false, event: null, date: null });
   const [confirmationModalState, setConfirmationModalState] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: (() => void) | null }>({ isOpen: false, title: '', message: '', onConfirm: null });
   const [selectedDate, setSelectedDate] = useState(currentDate);
+  const [isCalendarDropdownOpen, setIsCalendarDropdownOpen] = useState(false);
 
   const changeDate = (amount: number) => {
     setCurrentDate(prev => {
@@ -109,6 +110,31 @@ const CalendarViewWrapper: React.FC = () => {
             <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Calendario de Citas</h2>
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
+            <div className="relative">
+              <button onClick={() => setIsCalendarDropdownOpen(!isCalendarDropdownOpen)} className="flex items-center gap-2 px-3 py-1.5 text-xs sm:text-sm font-semibold bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-300 dark:border-slate-600 rounded-lg transition-colors">
+                <span>Calendarios</span>
+                <ChevronDown className={`h-4 w-4 transition-transform ${isCalendarDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {isCalendarDropdownOpen && (
+                <div className="absolute z-10 mt-2 w-56 bg-white dark:bg-slate-700 rounded-md shadow-lg ring-1 ring-black ring-opacity-5">
+                  <div className="py-1">
+                    {calendars.map((calendar) => (
+                      <a
+                        key={calendar.id}
+                        href="#"
+                        className="flex items-center justify-between px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-600"
+                      >
+                        <span>{calendar.summary}</span>
+                        <span
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: calendar.backgroundColor }}
+                        ></span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
             <div className="flex items-center border border-slate-300 dark:border-slate-600 rounded-lg">
               <button onClick={() => handleViewChange('month')} className={`px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-l-md transition-colors ${currentView === 'month' ? 'bg-orange-500 text-white' : 'bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600'}`}>Mes</button>
               <button onClick={() => handleViewChange('week')} className={`px-3 py-1.5 text-xs sm:text-sm font-semibold border-l border-slate-300 dark:border-slate-600 transition-colors ${currentView === 'week' ? 'bg-orange-500 text-white' : 'bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600'}`}>Semana</button>
