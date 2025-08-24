@@ -19,6 +19,23 @@ const CalendarViewWrapper: React.FC = () => {
   const [confirmationModalState, setConfirmationModalState] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: (() => void) | null }>({ isOpen: false, title: '', message: '', onConfirm: null });
   const [selectedDate, setSelectedDate] = useState(currentDate);
   const [isCalendarDropdownOpen, setIsCalendarDropdownOpen] = useState(false);
+  const [selectedCalendarIds, setSelectedCalendarIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (calendars.length > 0 && selectedCalendarIds.length === 0) {
+      setSelectedCalendarIds(calendars.map(c => c.id));
+    }
+  }, [calendars, selectedCalendarIds.length]);
+
+  const handleCalendarSelection = (calendarId: string) => {
+    setSelectedCalendarIds(prevSelectedIds => {
+      if (prevSelectedIds.includes(calendarId)) {
+        return prevSelectedIds.filter(id => id !== calendarId);
+      } else {
+        return [...prevSelectedIds, calendarId];
+      }
+    });
+  };
 
   const changeDate = (amount: number) => {
     setCurrentDate(prev => {
@@ -119,17 +136,24 @@ const CalendarViewWrapper: React.FC = () => {
                 <div className="absolute z-10 mt-2 w-56 bg-white dark:bg-slate-700 rounded-md shadow-lg ring-1 ring-black ring-opacity-5">
                   <div className="py-1">
                     {calendars.map((calendar) => (
-                      <a
+                      <label
                         key={calendar.id}
-                        href="#"
-                        className="flex items-center justify-between px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-600"
+                        className="flex items-center justify-between px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-600 cursor-pointer"
                       >
-                        <span>{calendar.summary}</span>
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                            checked={selectedCalendarIds.includes(calendar.id)}
+                            onChange={() => handleCalendarSelection(calendar.id)}
+                          />
+                          <span>{calendar.summary}</span>
+                        </div>
                         <span
                           className="w-3 h-3 rounded-full"
                           style={{ backgroundColor: calendar.backgroundColor }}
                         ></span>
-                      </a>
+                      </label>
                     ))}
                   </div>
                 </div>
