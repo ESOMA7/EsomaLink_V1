@@ -14,12 +14,12 @@ import DayView from '../calendar/DayView';
 const CalendarViewWrapper: React.FC = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [currentView, setCurrentView] = useState<'month' | 'week' | 'day'>('month');
-  const { events, isLoading, error, refreshEvents, deleteAppointment, createAppointment, calendars, updateAppointment } = useAppointments(currentDate, currentView);
   const [appointmentModalState, setAppointmentModalState] = useState<{ isOpen: boolean; event: AppointmentEvent | null; date: Date | null; }>({ isOpen: false, event: null, date: null });
   const [confirmationModalState, setConfirmationModalState] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: (() => void) | null }>({ isOpen: false, title: '', message: '', onConfirm: null });
   const [selectedDate, setSelectedDate] = useState(currentDate);
   const [isCalendarDropdownOpen, setIsCalendarDropdownOpen] = useState(false);
   const [selectedCalendarIds, setSelectedCalendarIds] = useState<string[]>([]);
+  const { events, isLoading, error, refreshEvents, deleteAppointment, createAppointment, calendars, updateAppointment } = useAppointments(currentDate, currentView, selectedCalendarIds);
 
   useEffect(() => {
     if (calendars.length > 0 && selectedCalendarIds.length === 0) {

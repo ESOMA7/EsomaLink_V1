@@ -3,7 +3,7 @@ import { AppointmentEvent, Calendar } from '@/types';
 import * as googleCalendarService from '../services/googleCalendarService';
 import { useAuth } from './useAuth';
 
-export const useAppointments = (currentDate: Date, currentView: 'month' | 'week' | 'day') => {
+export const useAppointments = (currentDate: Date, currentView: 'month' | 'week' | 'day', selectedCalendarIds: string[]) => {
     const { session } = useAuth();
     const [events, setEvents] = useState<AppointmentEvent[]>([]);
     const [calendars, setCalendars] = useState<Calendar[]>([]);
@@ -51,8 +51,10 @@ export const useAppointments = (currentDate: Date, currentView: 'month' | 'week'
             const userCalendars = await googleCalendarService.listUserCalendars();
             setCalendars(userCalendars || []);
 
-            if (userCalendars && userCalendars.length > 0) {
-                const allEventsPromises = userCalendars.map(calendar => 
+            if (userCalendars && userCalendars.length > 0 && selectedCalendarIds.length > 0) {
+                const calendarsToFetch = userCalendars.filter(c => selectedCalendarIds.includes(c.id));
+
+                const allEventsPromises = calendarsToFetch.map(calendar => 
                     googleCalendarService.listUpcomingEvents(
                         calendar.id, 
                         calendar.backgroundColor,
@@ -80,7 +82,7 @@ export const useAppointments = (currentDate: Date, currentView: 'month' | 'week'
         } finally {
             setIsLoading(false);
         }
-    }, [session, currentDate, currentView]);
+    }, [session, currentDate, currentView, selectedCalendarIds]);
 
     useEffect(() => {
         console.log('useEffect triggered, calling fetchGoogleCalendarEvents');
