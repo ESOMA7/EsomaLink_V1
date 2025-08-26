@@ -51,6 +51,7 @@ const InterventionsViewWrapper: React.FC<InterventionsViewWrapperProps> = ({
       if (interventionId < 0) {
         setTempInterventions(tempInterventions.filter(i => i.id !== interventionId));
         toast.success('Intervención de prueba eliminada.');
+        setConfirmationModalState({ isOpen: false, title: '', message: '', onConfirm: null });
         return;
       }
       try {
@@ -58,6 +59,8 @@ const InterventionsViewWrapper: React.FC<InterventionsViewWrapperProps> = ({
         toast.success('Intervención eliminada con éxito.');
       } catch (error) {
         toast.error('Error al eliminar la intervención.');
+      } finally {
+        setConfirmationModalState({ isOpen: false, title: '', message: '', onConfirm: null });
       }
     };
 
