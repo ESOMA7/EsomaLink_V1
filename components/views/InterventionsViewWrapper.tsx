@@ -3,21 +3,21 @@ import InterventionsView from './InterventionsView';
 import { useInterventions } from '../../hooks/useInterventions';
 import { Intervention } from '../../types';
 import { toast } from 'react-hot-toast';
+import AddInterventionModal from '../ui/AddInterventionModal';
 
 interface InterventionsViewWrapperProps {
-  setInterventionModalState: (state: any) => void;
   setConfirmationModalState: (state: any) => void;
   tempInterventions: Intervention[];
   setTempInterventions: (interventions: Intervention[]) => void;
 }
 
 const InterventionsViewWrapper: React.FC<InterventionsViewWrapperProps> = ({
-  setInterventionModalState,
   setConfirmationModalState,
   tempInterventions,
   setTempInterventions
 }) => {
   const [selectedInterventionIds, setSelectedInterventionIds] = useState<number[]>([]);
+  const [modalState, setModalState] = useState<{ isOpen: boolean; intervention: Intervention | null; }>({ isOpen: false, intervention: null });
   
   const onNewIntervention = useCallback(() => {
     // This callback is kept for the subscription, but doesn't need to set state anymore.
@@ -35,6 +35,16 @@ const InterventionsViewWrapper: React.FC<InterventionsViewWrapperProps> = ({
   } = useInterventions({ onNewIntervention });
 
   const interventions = [...tempInterventions, ...dbInterventions];
+
+  const handleSaveIntervention = async (intervention: Omit<Intervention, 'id' | 'created_at' | 'updated_at'> & { id?: number }) => {
+    try {
+      await saveIntervention(intervention);
+      toast.success('Intervención guardada con éxito.');
+      setModalState({ isOpen: false, intervention: null });
+    } catch (error) {
+      toast.error('Error al guardar la intervención.');
+    }
+  };
 
   const handleDeleteIntervention = (interventionId: number) => {
     const onConfirmDelete = async () => {
@@ -95,13 +105,14 @@ const InterventionsViewWrapper: React.FC<InterventionsViewWrapperProps> = ({
   };
 
   return (
+    <>
     <InterventionsView 
       interventions={interventions}
       onUpdateStatus={updateInterventionStatus}
       onDelete={handleDeleteIntervention}
       onGenerateResponse={handleGenerateResponse}
-      onAdd={() => setInterventionModalState({ isOpen: true, intervention: null })}
-      onEdit={(intervention) => setInterventionModalState({ isOpen: true, intervention })}
+      onAdd={() => setModalState({ isOpen: true, intervention: null })}
+      onEdit={(intervention) => setModalState({ isOpen: true, intervention })}
       isLoading={loadingInterventions}
       error={errorInterventions ? new Error(errorInterventions) : null}
       selectedIds={selectedInterventionIds}
@@ -109,6 +120,12 @@ const InterventionsViewWrapper: React.FC<InterventionsViewWrapperProps> = ({
       onDeleteSelected={confirmDeleteSelectedInterventions}
       fetchInterventions={fetchInterventions}
     />
+    <AddInterventionModal 
+      modalState={modalState}
+      onClose={() => setModalState({ isOpen: false, intervention: null })}
+      onSave={handleSaveIntervention}
+    />
+    </>
   );
 };
 

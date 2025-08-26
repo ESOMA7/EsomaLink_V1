@@ -97,7 +97,6 @@ const App: React.FC = () => {
                 />
                 <main className="flex-1 p-6 overflow-auto">
                     <AppRoutes
-                        setInterventionModalState={setInterventionModalState}
                         setPaymentModalState={setPaymentModalState}
                         setConfirmationModalState={setConfirmationModalState}
                         tempInterventions={tempInterventions}
@@ -111,7 +110,6 @@ const App: React.FC = () => {
                 </main>
 
                 {/* Modals */}
-                <AddInterventionModal modalState={interventionModalState} onClose={() => setInterventionModalState({ isOpen: false, intervention: null })} onSave={() => {}} />
                 <AddPaymentModal modalState={paymentModalState} onClose={() => setPaymentModalState({ isOpen: false, payment: null })} onSave={() => {}} />
             </div>
         </Router>
