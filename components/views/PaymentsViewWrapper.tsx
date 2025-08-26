@@ -1,17 +1,17 @@
-import React from 'react';
+import React, { useState } from 'react';
 import PaymentsView from './PaymentsView';
 import { usePayments } from '../../hooks/usePayments';
 import { toast } from 'react-hot-toast';
+import AddPaymentModal from '../ui/AddPaymentModal';
+import { Payment } from '../../types';
 
 interface PaymentsViewWrapperProps {
-  setPaymentModalState: (state: any) => void;
   setConfirmationModalState: (state: any) => void;
 }
 
-const PaymentsViewWrapper: React.FC<PaymentsViewWrapperProps> = ({
-  setPaymentModalState,
-  setConfirmationModalState
-}) => {
+const PaymentsViewWrapper: React.FC<PaymentsViewWrapperProps> = ({ setConfirmationModalState }) => {
+  const [modalState, setModalState] = useState<{ isOpen: boolean; payment: Payment | null; }>({ isOpen: false, payment: null });
+
   const { 
     payments, 
     isLoading: loadingPayments, 
@@ -20,6 +20,16 @@ const PaymentsViewWrapper: React.FC<PaymentsViewWrapperProps> = ({
     deletePayment, 
     fetchPayments 
   } = usePayments();
+
+  const handleSavePayment = async (payment: Omit<Payment, 'id' | 'fecha' | 'referencia' | 'creado_en' | 'id_usuario'> & { id?: number }) => {
+    try {
+      await savePayment(payment);
+      toast.success('Pago guardado con éxito.');
+      setModalState({ isOpen: false, payment: null });
+    } catch (error) {
+      toast.error('Error al guardar el pago.');
+    }
+  };
 
   const handleDeletePayment = (id: number, nombre: string) => {
     setConfirmationModalState({
@@ -39,15 +49,22 @@ const PaymentsViewWrapper: React.FC<PaymentsViewWrapperProps> = ({
   };
 
   return (
-    <PaymentsView 
-      payments={payments}
-      onDelete={handleDeletePayment}
-      onAdd={() => setPaymentModalState({ isOpen: true, payment: null })}
-      onEdit={(payment) => setPaymentModalState({ isOpen: true, payment })}
-      isLoading={loadingPayments}
-      error={errorPayments}
-      fetchPayments={fetchPayments}
-    />
+    <>
+      <PaymentsView 
+        payments={payments}
+        onDelete={handleDeletePayment}
+        onAdd={() => setModalState({ isOpen: true, payment: null })}
+        onEdit={(payment) => setModalState({ isOpen: true, payment })}
+        isLoading={loadingPayments}
+        error={errorPayments}
+        fetchPayments={fetchPayments}
+      />
+      <AddPaymentModal 
+        modalState={modalState}
+        onClose={() => setModalState({ isOpen: false, payment: null })}
+        onSave={handleSavePayment}
+      />
+    </>
   );
 };
 
