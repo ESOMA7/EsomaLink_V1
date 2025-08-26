@@ -8,7 +8,7 @@ interface AddPaymentModalProps {
         payment: Payment | null;
     };
     onClose: () => void;
-    onSave: (data: Omit<Payment, 'id' | 'fecha' | 'referencia' | 'creado_en' | 'id_usuario'>) => void;
+    onSave: (data: Omit<Payment, 'id' | 'fecha' | 'referencia' | 'creado_en' | 'id_usuario'> & { id?: number }) => void;
 }
 
 const AddPaymentModal: React.FC<AddPaymentModalProps> = ({ modalState, onClose, onSave }) => {
@@ -51,9 +51,19 @@ const AddPaymentModal: React.FC<AddPaymentModalProps> = ({ modalState, onClose, 
         if (!nombre.trim() || !concepto.trim() || valor === '' || Number(valor) <= 0 || !banco.trim()) {
             return;
         }
-        const paymentData = { nombre, whatsapp, concepto, valor: Number(valor), banco };
+        const paymentData: Omit<Payment, 'id' | 'fecha' | 'referencia' | 'creado_en' | 'id_usuario'> & { id?: number } = { 
+            nombre, 
+            whatsapp, 
+            concepto, 
+            valor: Number(valor), 
+            banco 
+        };
+
+        if (payment && payment.id) {
+            paymentData.id = payment.id;
+        }
+
         onSave(paymentData);
-        onClose();
     };
 
     if (!isOpen) return null;

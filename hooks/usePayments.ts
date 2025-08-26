@@ -40,45 +40,42 @@ export const usePayments = () => {
         }
     }, [user, fetchPayments]);
 
-    const savePayment = useCallback(async (paymentData: Omit<Payment, 'id' | 'fecha' | 'referencia' | 'creado_en' | 'id_usuario'>) => {
+    const savePayment = useCallback(async (paymentData: Omit<Payment, 'fecha' | 'referencia' | 'creado_en' | 'id_usuario'> & { id?: number }) => {
         if (!user) return { success: false };
 
-        const newPayment = {
-            ...paymentData,
-            referencia: `TXN${Date.now().toString().slice(-6)}`,
-            fecha: new Date().toISOString().split('T')[0],
-            id_usuario: user.id,
-        };
+        if (paymentData.id) {
+            // Update existing payment
+            const { error: updateError } = await supabase
+                .from('payments')
+                .update({
+                    nombre: paymentData.nombre,
+                    whatsapp: paymentData.whatsapp,
+                    concepto: paymentData.concepto,
+                    valor: paymentData.valor,
+                    banco: paymentData.banco,
+                })
+                .eq('id', paymentData.id)
+                .eq('id_usuario', user.id);
 
-        const { error: insertError } = await supabase.from('payments').insert(newPayment);
-
-        if (insertError) {
-            setError('Error al guardar el pago: ' + insertError.message);
-            return { success: false };
-        }
-
-        await fetchPayments();
-        return { success: true };
-    }, [user, fetchPayments]);
-
-    const updatePayment = useCallback(async (paymentToUpdate: Payment) => {
-        if (!user) return { success: false };
-
-        const { error: updateError } = await supabase
-            .from('payments')
-            .update({
-                nombre: paymentToUpdate.nombre,
-                whatsapp: paymentToUpdate.whatsapp,
-                concepto: paymentToUpdate.concepto,
-                valor: paymentToUpdate.valor,
-                banco: paymentToUpdate.banco,
-            })
-            .eq('id', paymentToUpdate.id)
-            .eq('id_usuario', user.id);
-
-        if (updateError) {
-            setError('Error al actualizar el pago: ' + updateError.message);
-            return { success: false };
+            if (updateError) {
+                setError('Error al actualizar el pago: ' + updateError.message);
+                return { success: false };
+            }
+        } else {
+            // Create new payment
+            const newPayment = {
+                ...paymentData,
+                referencia: `TXN${Date.now().toString().slice(-6)}`,
+                fecha: new Date().toISOString().split('T')[0],
+                id_usuario: user.id,
+            };
+    
+            const { error: insertError } = await supabase.from('payments').insert(newPayment);
+    
+            if (insertError) {
+                setError('Error al guardar el pago: ' + insertError.message);
+                return { success: false };
+            }
         }
 
         await fetchPayments();
@@ -103,5 +100,5 @@ export const usePayments = () => {
         return { success: true };
     }, [user]);
 
-    return { payments, isLoading, error, fetchPayments, savePayment, updatePayment, deletePayment };
+    return { payments, isLoading, error, fetchPayments, savePayment, deletePayment };
 };
