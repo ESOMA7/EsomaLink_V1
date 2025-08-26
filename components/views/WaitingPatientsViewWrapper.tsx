@@ -1,16 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import WaitingPatientsView from './WaitingPatientsView';
 import { useWaitingPatients } from '../../hooks/useWaitingPatients';
 import { toast } from 'react-hot-toast';
 import { WaitingPatient } from '../../types';
+import AddWaitingPatientModal from '../ui/AddWaitingPatientModal';
 
 interface WaitingPatientsViewWrapperProps {
-  setWaitingPatientModalState: (state: any) => void;
   setConfirmationModalState: (state: any) => void;
 }
 
 const WaitingPatientsViewWrapper: React.FC<WaitingPatientsViewWrapperProps> = ({
-  setWaitingPatientModalState,
   setConfirmationModalState
 }) => {
   const { 
@@ -22,6 +21,18 @@ const WaitingPatientsViewWrapper: React.FC<WaitingPatientsViewWrapperProps> = ({
     deleteWaitingPatient, 
     fetchWaitingPatients 
   } = useWaitingPatients();
+
+  const [modalState, setModalState] = useState<{ isOpen: boolean; patient: WaitingPatient | null; }>({ isOpen: false, patient: null });
+
+  const handleSaveWaitingPatient = async (patient: Omit<WaitingPatient, 'id' | 'created_at'>) => {
+    try {
+      await saveWaitingPatient(patient);
+      toast.success('Paciente en espera guardado con éxito.');
+      setModalState({ isOpen: false, patient: null });
+    } catch (error) {
+      toast.error('Error al guardar el paciente en espera.');
+    }
+  };
 
   const handleDeleteWaitingPatient = (id: number, nombre: string) => {
     setConfirmationModalState({
@@ -41,6 +52,7 @@ const WaitingPatientsViewWrapper: React.FC<WaitingPatientsViewWrapperProps> = ({
   };
 
   return (
+    <>
     <WaitingPatientsView 
       patients={waitingPatients}
       onDelete={handleDeleteWaitingPatient}
@@ -50,12 +62,18 @@ const WaitingPatientsViewWrapper: React.FC<WaitingPatientsViewWrapperProps> = ({
           updateWaitingPatient({ ...patient, estado });
         }
       }}
-      onAdd={() => setWaitingPatientModalState({ isOpen: true, patient: null })}
-      onEdit={(patient) => setWaitingPatientModalState({ isOpen: true, patient })}
+      onAdd={() => setModalState({ isOpen: true, patient: null })}
+      onEdit={(patient) => setModalState({ isOpen: true, patient })}
       isLoading={loadingWaitingPatients}
       error={errorWaitingPatients}
       fetchWaitingPatients={fetchWaitingPatients}
     />
+    <AddWaitingPatientModal 
+      modalState={modalState}
+      onClose={() => setModalState({ isOpen: false, patient: null })}
+      onSave={handleSaveWaitingPatient}
+    />
+    </>
   );
 };
 

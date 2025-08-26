@@ -24,8 +24,6 @@ const App: React.FC = () => {
 
     const [interventionModalState, setInterventionModalState] = useState<{ isOpen: boolean; intervention: Intervention | null; }>({ isOpen: false, intervention: null });
     const [paymentModalState, setPaymentModalState] = useState<{ isOpen: boolean; payment: Payment | null; }>({ isOpen: false, payment: null });
-    const [waitingPatientModalState, setWaitingPatientModalState] = useState<{ isOpen: boolean; patient: WaitingPatient | null; }>({ isOpen: false, patient: null });
-    // Removed selectedInterventionIds as it's now handled in wrapper
     const [confirmationModalState, setConfirmationModalState] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: (() => void) | null }>({ isOpen: false, title: '', message: '', onConfirm: null });
 
     useEffect(() => {
@@ -101,7 +99,6 @@ const App: React.FC = () => {
                     <AppRoutes
                         setInterventionModalState={setInterventionModalState}
                         setPaymentModalState={setPaymentModalState}
-                        setWaitingPatientModalState={setWaitingPatientModalState}
                         setConfirmationModalState={setConfirmationModalState}
                         tempInterventions={tempInterventions}
                         setTempInterventions={setTempInterventions}
@@ -116,7 +113,6 @@ const App: React.FC = () => {
                 {/* Modals */}
                 <AddInterventionModal modalState={interventionModalState} onClose={() => setInterventionModalState({ isOpen: false, intervention: null })} onSave={() => {}} />
                 <AddPaymentModal modalState={paymentModalState} onClose={() => setPaymentModalState({ isOpen: false, payment: null })} onSave={() => {}} />
-                <AddWaitingPatientModal modalState={waitingPatientModalState} onClose={() => setWaitingPatientModalState({ isOpen: false, patient: null })} onSave={() => {}} />
             </div>
         </Router>
     );
