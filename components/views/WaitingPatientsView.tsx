@@ -3,6 +3,7 @@ import { WaitingPatient } from '../../types';
 import { PlusCircle, Edit, Trash2, RefreshCw } from 'lucide-react';
 import { TableViewSkeleton } from '../ui/LoadingSkeletons';
 import { ErrorMessage } from '../ui/ErrorMessage';
+import ExpandableText from '../ui/ExpandableText';
 
 interface WaitingPatientsViewProps {
     patients: WaitingPatient[];
@@ -30,7 +31,7 @@ const WaitingPatientsView: React.FC<WaitingPatientsViewProps> = ({ patients, onD
     };
 
     return (
-        <div>
+        <div className="flex flex-col h-full">
             <div className="flex flex-wrap justify-between items-center mb-8 gap-4">
                 <h2 className="text-3xl font-bold text-slate-800 dark:text-slate-100">Pacientes en Espera</h2>
                 <div className="flex items-center justify-end space-x-4">
@@ -51,7 +52,7 @@ const WaitingPatientsView: React.FC<WaitingPatientsViewProps> = ({ patients, onD
                     </button>
                 </div>
             </div>
-            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md overflow-x-auto">
+            <div className="flex-grow bg-white dark:bg-slate-800 rounded-lg shadow-md overflow-auto">
                 {isLoading ? (
                     <TableViewSkeleton />
                 ) : error ? (
@@ -75,7 +76,7 @@ const WaitingPatientsView: React.FC<WaitingPatientsViewProps> = ({ patients, onD
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">{patient.id}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900 dark:text-slate-100">{patient.nombre}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">{patient.telefono}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">{patient.caso}</td>
+                                    <td className="px-6 py-4 text-sm text-slate-500 dark:text-slate-400"><ExpandableText text={patient.caso} /></td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">{patient.fecha}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-center">
                                         <select
