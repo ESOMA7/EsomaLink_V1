@@ -26,9 +26,10 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ modalState, onClose
 
     useEffect(() => {
         if (event) {
+            const calendar = calendars.find(c => c.id === event.calendarId);
             setPatient(event.patient || '');
             setProcedure(event.procedure || '');
-                        setProfessional(event.professional || '');
+            setProfessional(calendar?.summary || event.professional || '');
             setEventDate(new Date(event.start));
             setEventStartTime(new Date(event.start).toTimeString().substring(0, 5));
             setEventEndTime(new Date(event.end).toTimeString().substring(0, 5));
