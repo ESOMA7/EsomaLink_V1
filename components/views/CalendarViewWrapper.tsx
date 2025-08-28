@@ -120,7 +120,7 @@ const CalendarViewWrapper: React.FC = () => {
   };
 
   return (
-    <div className="flex h-full bg-slate-50 dark:bg-slate-900">
+    <div className="flex bg-slate-50 dark:bg-slate-900">
       <div className="flex flex-col flex-grow">
         <header className="flex flex-wrap justify-between items-center flex-shrink-0 gap-4 p-6 pb-4">
           <div className="flex items-center gap-2">
@@ -176,8 +176,8 @@ const CalendarViewWrapper: React.FC = () => {
             </div>
           </div>
         </header>
-        <main className="flex-grow flex flex-col overflow-hidden p-6 pt-0">
-          <div className="flex-grow flex flex-col bg-white dark:bg-slate-800 rounded-lg shadow-md overflow-hidden">
+        <main className="flex-grow flex flex-col p-6 pt-0">
+          <div className="flex-grow flex flex-col bg-white dark:bg-slate-800 rounded-lg shadow-md">
             {isLoading ? (
               <CalendarViewSkeleton />
             ) : error ? (
