@@ -48,7 +48,17 @@ export const useAppointments = (currentDate: Date, currentView: 'month' | 'week'
         try {
             await googleCalendarService.initializeGapiClient(accessToken);
             
-            const userCalendars = await googleCalendarService.listUserCalendars();
+            let userCalendars = await googleCalendarService.listUserCalendars();
+            
+            if (userCalendars) {
+                userCalendars = userCalendars.map(calendar => {
+                    if (calendar.summary === 'CALENDARIO JOSE') {
+                        return { ...calendar, backgroundColor: '#4285F4' }; // Blue color from Google Calendar
+                    }
+                    return calendar;
+                });
+            }
+
             setCalendars(userCalendars || []);
 
             if (userCalendars && userCalendars.length > 0) {
