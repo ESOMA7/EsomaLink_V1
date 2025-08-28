@@ -10,14 +10,12 @@ export const useWaitingPatients = () => {
     const [error, setError] = useState<string | null>(null);
 
     const fetchWaitingPatients = useCallback(async () => {
-        if (!user) return;
         setIsLoading(true);
         setError(null);
         try {
             const { data, error: fetchError } = await supabase
                 .from('waiting_patients')
                 .select('*')
-                .eq('id_usuario', user.id)
                 .order('fecha', { ascending: false });
 
             if (fetchError) throw fetchError;
@@ -27,13 +25,27 @@ export const useWaitingPatients = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [user]);
+    }, []);
 
     useEffect(() => {
-        if (user) {
-            fetchWaitingPatients();
-        }
-    }, [user, fetchWaitingPatients]);
+        fetchWaitingPatients();
+
+        const channel = supabase
+            .channel('waiting-patients-realtime')
+            .on(
+                'postgres_changes',
+                { event: 'INSERT', schema: 'public', table: 'waiting_patients' },
+                (payload) => {
+                    const newPatient = payload.new as WaitingPatient;
+                    setWaitingPatients(prev => [newPatient, ...prev]);
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [fetchWaitingPatients]);
 
     const saveWaitingPatient = useCallback(async (patientData: Omit<WaitingPatient, 'id' | 'fecha' | 'creado_en' | 'id_usuario'>) => {
         if (!user) return { success: false };
@@ -61,8 +73,7 @@ export const useWaitingPatients = () => {
                 caso: patientToUpdate.caso,
                 estado: patientToUpdate.estado,
             })
-            .eq('id', patientToUpdate.id)
-            .eq('id_usuario', user.id);
+            .eq('id', patientToUpdate.id);
 
         if (updateError) {
             setError('Error al actualizar el paciente: ' + updateError.message);
@@ -73,20 +84,23 @@ export const useWaitingPatients = () => {
     }, [user, fetchWaitingPatients]);
 
     const deleteWaitingPatient = useCallback(async (patientId: number) => {
-        if (!user) return { success: false };
+        // Optimistic update: remove the patient from the local state first
+        setWaitingPatients(prevPatients => prevPatients.filter(p => p.id !== patientId));
+
         const { error: deleteError } = await supabase
             .from('waiting_patients')
             .delete()
-            .eq('id', patientId)
-            .eq('id_usuario', user.id);
+            .eq('id', patientId);
 
         if (deleteError) {
             setError('Error al eliminar el paciente: ' + deleteError.message);
+            // If the delete fails, refetch the data to revert the optimistic update
+            fetchWaitingPatients();
             return { success: false };
         }
-        setWaitingPatients(prev => prev.filter(p => p.id !== patientId));
+
         return { success: true };
-    }, [user]);
+    }, [fetchWaitingPatients]);
 
     return { waitingPatients, isLoading, error, fetchWaitingPatients, saveWaitingPatient, updateWaitingPatient, deleteWaitingPatient };
 };
