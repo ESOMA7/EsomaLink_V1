@@ -20,7 +20,6 @@ export const usePayments = () => {
             const { data, error: fetchError } = await supabase
                 .from('payments')
                 .select('*')
-                .eq('id_usuario', user.id)
                 .order('fecha', { ascending: false });
 
             if (fetchError) throw fetchError;
@@ -37,6 +36,17 @@ export const usePayments = () => {
     useEffect(() => {
         if (user) {
             fetchPayments();
+
+            const channel = supabase.channel('realtime-payments');
+            channel
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'payments' }, (payload) => {
+                    setPayments(currentPayments => [payload.new as Payment, ...currentPayments]);
+                })
+                .subscribe();
+
+            return () => {
+                supabase.removeChannel(channel);
+            };
         }
     }, [user, fetchPayments]);
 
@@ -54,8 +64,7 @@ export const usePayments = () => {
                     valor: paymentData.valor,
                     banco: paymentData.banco,
                 })
-                .eq('id', paymentData.id)
-                .eq('id_usuario', user.id);
+                .eq('id', paymentData.id);
 
             if (updateError) {
                 setError('Error al actualizar el pago: ' + updateError.message);
@@ -83,22 +92,21 @@ export const usePayments = () => {
     }, [user, fetchPayments]);
 
     const deletePayment = useCallback(async (paymentId: number) => {
-        if (!user) return { success: false };
+        setPayments(prev => prev.filter(p => p.id !== paymentId));
 
         const { error: deleteError } = await supabase
             .from('payments')
             .delete()
-            .eq('id', paymentId)
-            .eq('id_usuario', user.id);
+            .eq('id', paymentId);
 
         if (deleteError) {
             setError('Error al eliminar el pago: ' + deleteError.message);
+            fetchPayments(); // Revert optimistic update
             return { success: false };
         }
 
-        setPayments(prev => prev.filter(p => p.id !== paymentId));
         return { success: true };
-    }, [user]);
+    }, [fetchPayments]);
 
     return { payments, isLoading, error, fetchPayments, savePayment, deletePayment };
 };
