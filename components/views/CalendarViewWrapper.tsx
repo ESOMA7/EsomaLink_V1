@@ -85,6 +85,7 @@ const CalendarViewWrapper: React.FC = () => {
     if (result.success) {
       toast.success(data.id ? 'Cita actualizada correctamente.' : 'Cita creada correctamente.');
       setAppointmentModalState({ isOpen: false, event: null, date: null });
+      refreshEvents(); // Actualizar eventos
     } else {
       toast.error(result.error || (data.id ? 'No se pudo actualizar la cita.' : 'No se pudo crear la cita.'));
     }
