@@ -128,9 +128,19 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ modalState, onClose
                             <div>
                                 <label htmlFor="professional" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Profesional/Responsable</label>
                                 <select value={professional} onChange={(e) => setProfessional(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm">
-                                    {calendars.map(cal => (
-                                        <option key={cal.id} value={cal.summary}>{cal.summary}</option>
-                                    ))}
+                                    {calendars.map(cal => {
+                                        const isDisabled = cal.summary === 'Días feriados en Colombia' || cal.summary === 'Festivos en Colombia';
+                                        return (
+                                            <option 
+                                                key={cal.id} 
+                                                value={cal.summary} 
+                                                disabled={isDisabled}
+                                                className={isDisabled ? 'text-gray-400' : ''}
+                                            >
+                                                {cal.summary}
+                                            </option>
+                                        );
+                                    })}
                                 </select>
                             </div>
                         </div>
