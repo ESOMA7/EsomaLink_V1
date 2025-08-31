@@ -101,6 +101,7 @@ const CalendarViewWrapper: React.FC = () => {
   }, [currentDate]);
 
   const handleDeleteAppointment = (id: string | number, title: string) => {
+
     setConfirmationModalState({
       isOpen: true,
       title: 'Confirmar Eliminación',
@@ -114,10 +115,6 @@ const CalendarViewWrapper: React.FC = () => {
         setConfirmationModalState({ isOpen: false, title: '', message: '', onConfirm: null });
       },
     });
-  };
-  
-  const updateAppointmentDate = async (eventId: string, newStartDate: Date, newEndDate: Date) => {
-    toast.error('La actualización de citas no está disponible.');
   };
 
   return (
@@ -197,7 +194,11 @@ const CalendarViewWrapper: React.FC = () => {
                     currentDate={currentDate}
                     events={events}
                     onEventClick={handleEventClick}
-                    onUpdateAppointmentDate={updateAppointmentDate}
+                    onUpdateAppointmentDate={async () => {
+                      const result = { success: false };
+                      toast.error('La actualización de citas no está disponible.');
+                      return result;
+                    }}
                     onSlotClick={handleSlotClick}
                     selectedDate={selectedDate}
                     onDateSelect={setSelectedDate}
@@ -222,12 +223,12 @@ const CalendarViewWrapper: React.FC = () => {
         onDelete={handleDeleteAppointment} 
         calendars={calendars}
       />
-      <ConfirmationModal 
-        modalState={confirmationModalState} 
-        onClose={() => setConfirmationModalState({ isOpen: false, title: '', message: '', onConfirm: null })} 
+      <ConfirmationModal
+        modalState={confirmationModalState}
+        setModalState={setConfirmationModalState}
       />
     </div>
   );
-};
+}; // End of CalendarViewWrapper component
 
 export default CalendarViewWrapper;

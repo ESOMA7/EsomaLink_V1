@@ -70,10 +70,9 @@ export const useInterventions = ({ onNewIntervention }: UseInterventionsProps = 
             } else {
                 // If no ID exists, it's a create operation.
                 // We explicitly exclude 'id' from the object to be inserted.
-                const { id, ...dataToInsert } = interventionData;
                 const { error: insertError } = await supabase
                     .from('interventions')
-                    .insert(dataToInsert); // Supabase will auto-generate the ID.
+                    .insert(interventionData); // Supabase will auto-generate the ID.
 
                 if (insertError) throw insertError;
             }
