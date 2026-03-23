@@ -72,6 +72,9 @@ export const loadGoogleApiService = (callback: () => void) => {
 };
 
 export const initializeGapiClient = async (accessToken: string): Promise<void> => {
+    // Wait for the scripts to be loaded first
+    await window.gapiLoadPromise;
+
     if (!window.gapi) {
         throw new Error('Google API not loaded');
     }

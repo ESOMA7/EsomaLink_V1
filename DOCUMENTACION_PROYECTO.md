@@ -28,6 +28,8 @@ La aplicación utiliza una **arquitectura híbrida y desacoplada**, diseñada pa
     *   **Framework:** React 19
     *   **Lenguaje:** TypeScript
     *   **Estilos:** TailwindCSS
+    *   **PWA:** Soporte completo mediante `vite-plugin-pwa` para accesibilidad offline e instalación nativa.
+    *   **Infraestructura de Despliegue:** Cloudflare Pages. Código fuente gestionado en repositorio privado de GitHub.
     *   **Renderizado:** Del lado del cliente (CSR).
 
 *   **Backend y Servicios Externos:** La lógica de backend está distribuida entre varios servicios para optimizar la seguridad y funcionalidad.
@@ -43,7 +45,7 @@ La aplicación utiliza una **arquitectura híbrida y desacoplada**, diseñada pa
 
     *   **Módulos de Negocio (Citas, Pagos, Intervenciones):**
         *   **Servicios Finales:** **Google Calendar API** y **Google Sheets API**.
-        *   **Implementación Futura:** La comunicación con estas APIs se debe realizar a través de un **backend propio (ej. Vercel Serverless Functions)** para manejar de forma segura el flujo de OAuth 2.0 y la lógica de negocio.
+        *   **Implementación Futura:** La comunicación con estas APIs se debe realizar a través de un **backend propio (ej. Cloudflare Workers)** para manejar de forma segura el flujo de OAuth 2.0 y la lógica de negocio.
         *   **Estado Actual:** El frontend está preparado para esta arquitectura. Llama a un servicio `googleApiService.ts` que contiene funciones de **marcador de posición (placeholder)**. El siguiente paso del desarrollo es implementar el backend y reemplazar estas funciones de placeholder con llamadas `fetch` a los endpoints de la API del backend.
 
 #### Diagrama de Flujo de Datos:
@@ -55,7 +57,7 @@ La aplicación utiliza una **arquitectura híbrida y desacoplada**, diseñada pa
                                      └───────────▲──────────────┘
                                                  │ (OAuth 2.0)
 ┌────────────────┐      ┌────────────────────────┴───────────────────────┐
-│  Usuario       ├─────►│         Frontend (React App en Vercel)         │
+│  Usuario       ├─────►│     Frontend (React App en Cloudflare Pages)   │
 └────────────────┘      │                                                │
                         │ 1. Llama a googleApiService.ts (placeholders)  │
                         │ 2. Llama a supabaseClient.ts (Auth, Notas)     │
@@ -66,7 +68,7 @@ La aplicación utiliza una **arquitectura híbrida y desacoplada**, diseñada pa
                                    ▼              ▼              ▼
            ┌───────────────────────┴──┐  ┌────────┴────────┐  ┌───┴─────────────┐
            │ Backend Propio           │  │   Supabase DB   │  │ Supabase Edge   │
-           │ (Vercel Serverless Func) │  │   (PostgreSQL)  │  │   Function      │
+           │ (Cloudflare Workers)     │  │   (PostgreSQL)  │  │   Function      │
            │ - Conecta con Google API │  │ - Módulo "Notas"│  │ - Proxy para IA │
            └──────────────────────────┘  └─────────────────┘  └───────▲─────────┘
                                                                      │ (API Key Segura)
@@ -115,8 +117,8 @@ Para llevar este proyecto del código fuente a una aplicación funcional, sigue 
 
 **Prerrequisitos:**
 *   Node.js y npm/yarn.
-*   Cuenta de GitHub.
-*   Cuenta de Vercel.
+*   Cuenta de GitHub (repositorio privado).
+*   Cuenta de Cloudflare.
 *   Cuenta de Supabase.
 *   Cuenta de Google Cloud Platform.
 *   [Supabase CLI](https://supabase.com/docs/guides/cli) instalada localmente.
@@ -136,9 +138,9 @@ Para llevar este proyecto del código fuente a una aplicación funcional, sigue 
         *   En tu terminal, en la raíz del proyecto, ejecuta `supabase login` y `supabase link --project-ref TU_ID_DE_PROYECTO`.
         *   Añade tu clave de Gemini como un secreto: `supabase secrets set GEMINI_API_KEY=tu_clave_de_gemini`.
         *   Despliega la función: `supabase functions deploy generate-response`.
-4.  **Desplegar en Vercel:**
-    *   Conecta tu repositorio de GitHub a Vercel.
-    *   En la configuración del proyecto en Vercel, ve a **Settings > Environment Variables** y añade las claves para Supabase y Gemini. **Importante:** Deberás modificar el código para que lea estas variables de entorno en lugar de tenerlas hardcodeadas para que el despliegue de Vercel funcione. Este es un paso de refactorización necesario para producción.
+4.  **Desplegar en Cloudflare Pages:**
+    *   Sigue el flujo de CI/CD conectado a tu repositorio privado.
+    *   **Importante:** Asegúrate de que las variables de entorno para Supabase y Gemini estén definidas en la configuración de entorno de GitHub Actions o del servicio de build. Este es un paso necesario para producción.
 5.  **Ejecutar Localmente:**
     *   Asegúrate de haber reemplazado las claves en los archivos de servicio.
     *   Abre el `index.html` en un servidor web local (ej. con la extensión Live Server de VS Code).
@@ -167,7 +169,7 @@ Para llevar este proyecto del código fuente a una aplicación funcional, sigue 
 ### 7. Próximos Pasos de Desarrollo
 
 1.  **Implementar Backend para Google APIs:**
-    *   Crear endpoints serverless (ej. en una carpeta `/api`) compatibles con Vercel.
+    *   Crear endpoints serverless (ej. usando Cloudflare Workers) e integrarlos al proyecto.
     *   Implementar el flujo de OAuth 2.0 para que la aplicación pueda solicitar permisos al usuario para acceder a su Google Calendar y Sheets.
     *   Usar librerías como `googleapis` en el backend para interactuar con las APIs.
 2.  **Conectar Frontend al Nuevo Backend:**
