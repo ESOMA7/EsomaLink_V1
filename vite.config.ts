@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => {
     plugins: [
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['logo.png', 'notification.mp3'],
+        includeAssets: ['logo.png', 'notification.mp3', 'pwa-192x192.png', 'pwa-512x512.png', 'maskable-icon-512x512.png', 'screenshot-desktop.png', 'screenshot-mobile.png'],
         manifest: {
           name: 'EsomaLink Clínica',
           short_name: 'EsomaLink',
@@ -22,20 +22,35 @@ export default defineConfig(({ mode }) => {
           orientation: 'portrait',
           icons: [
             {
-              src: '/logo.png',
+              src: '/pwa-192x192.png',
               sizes: '192x192',
-              type: 'image/png'
+              type: 'image/png',
+              purpose: 'any'
             },
             {
-              src: '/logo.png',
-              sizes: '512x512',
-              type: 'image/png'
-            },
-            {
-              src: '/logo.png',
+              src: '/pwa-512x512.png',
               sizes: '512x512',
               type: 'image/png',
-              purpose: 'any maskable'
+              purpose: 'any'
+            },
+            {
+              src: '/maskable-icon-512x512.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'maskable'
+            }
+          ],
+          screenshots: [
+            {
+              src: '/screenshot-desktop.png',
+              sizes: '1280x720',
+              type: 'image/png',
+              form_factor: 'wide'
+            },
+            {
+              src: '/screenshot-mobile.png',
+              sizes: '750x1334',
+              type: 'image/png'
             }
           ]
         },
