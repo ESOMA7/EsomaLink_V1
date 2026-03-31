@@ -95,6 +95,7 @@ La aplicación utiliza una **arquitectura híbrida y desacoplada**, diseñada pa
     *   `supabaseClient.ts`: Inicializa y exporta el cliente de Supabase. **Aquí se deben configurar la URL y la Anon Key.**
     *   `aiService.ts`: Llama de forma segura a la Edge Function de Supabase para la IA.
     *   `googleApiService.ts`: **Contiene los placeholders** para las futuras llamadas al backend que se conectará con Google Calendar y Sheets.
+    *   `desktopNotificationService.ts`: Gestiona las notificaciones nativas de escritorio (Notification API) para alertas en el OS.
 *   `/supabase/`:
     *   `schema.sql`: Contiene el DDL para crear la tabla `notes` y sus políticas de seguridad (RLS). **Debe ejecutarse en el editor SQL de Supabase.**
     *   `/functions/generate-response/index.ts`: El código de la Edge Function que actúa como proxy seguro para la API de Gemini.
@@ -106,10 +107,12 @@ La aplicación sigue un patrón de **hooks personalizados** para la gestión del
 1.  **Orquestador:** El componente `App.tsx` es el padre de toda la aplicación.
 2.  **Inicialización de Hooks:** En `App.tsx`, se inicializan todos los hooks (`useAuth`, `useAppointments`, etc.). El hook `useAuth` es el primero; determina si el usuario está autenticado.
 3.  **Paso de Datos y Funciones:** `App.tsx` pasa los datos (ej. `notes`) y las funciones de acción (ej. `handleSaveNote`) como props a los componentes de vista correspondientes.
-4.  **Aislamiento de Lógica:** Cada hook es una unidad autónoma:
+4.  **Aislamiento de Lógica y Caché SWR:** Cada hook es una unidad autónoma:
     *   Gestiona su propio estado (`useState`), incluyendo datos, estado de carga y errores.
+    *   **Rendimiento:** Implementa caché en memoria global (patrón *Stale-While-Revalidate*) para evitar pantallas de carga bloqueantes al cambiar de vistas, renderizando datos cacheados instantáneamente mientras revalida en segundo plano.
     *   Contiene la lógica para comunicarse con su servicio correspondiente (Supabase, `googleApiService`).
     *   Expone una API simple (`{ data, isLoading, error, saveData, deleteData }`) al resto de la aplicación.
+5.  **Eventos Globales y Notificaciones:** El componente `App.tsx` orquesta un *Listener Global* de Supabase Realtime que captura eventos de la base de datos de manera persistente (ideal para escritorio) y dispara alertas visuales o del OS, independientemente de la ruta que el usuario esté viendo.
 
 ### 5. Guía de Configuración y Puesta en Marcha
 
@@ -165,6 +168,10 @@ Para llevar este proyecto del código fuente a una aplicación funcional, sigue 
 *   **Asistente IA (Gemini):**
     *   **Flujo:** `GeminiModal` -> `aiService.generateInterventionResponse()` -> `supabase.functions.invoke('generate-response', { body: ... })`.
     *   **Seguridad:** La clave de la API está segura en los secretos de Supabase y solo la Edge Function puede acceder a ella.
+
+*   **Notificaciones Nativas de Escritorio (Desktop-First):**
+    *   **Flujo:** Supabase Realtime (INSERT en `interventions`) -> Global Listener en `App.tsx` -> `desktopNotificationService.ts` -> Notification API del SO (Windows/macOS).
+    *   **Comportamiento:** Emite sonido nativo (`notification.mp3`) y hace *focus* en la pestaña/ventana del navegador si el usuario hace clic en el banner del OS. Resuelve el problema de atención inactiva para las secretarias/asesores de la clínica.
 
 ### 7. Próximos Pasos de Desarrollo
 
