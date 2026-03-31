@@ -61,10 +61,9 @@ export const useAuth = () => {
                         setIsAuthenticated(true);
                         console.log('[useAuth] User authenticated successfully');
 
-                        // Si es un login con Google, guardar el refresh token
                         if (event === 'SIGNED_IN' && session?.provider_refresh_token) {
                             console.log('[useAuth] Google login detected - Saving refresh token');
-                            await saveGoogleRefreshToken(session.provider_refresh_token, supabaseUser.id);
+                            saveGoogleRefreshToken(session.provider_refresh_token, supabaseUser.id);
                         }
                     } else {
                         console.log('[useAuth] No user session, setting unauthenticated state');
@@ -94,8 +93,10 @@ export const useAuth = () => {
             provider: 'google',
             options: {
                 scopes: 'https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events',
+                redirectTo: window.location.origin,
                 queryParams: {
-                    access_type: 'offline'
+                    access_type: 'offline',
+                    prompt: 'consent'
                 }
             }
         });
