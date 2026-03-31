@@ -12,3 +12,12 @@ export interface AppointmentEvent extends AppointmentBase {
     calendarId?: string; // For Google Calendar sync
     color?: string; // For event color in UI
 }
+
+export interface Calendar {
+    id: string;
+    summary: string;
+    description?: string;
+    location?: string;
+    timeZone?: string;
+    backgroundColor?: string;
+}

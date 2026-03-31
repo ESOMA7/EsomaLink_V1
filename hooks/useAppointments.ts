@@ -11,8 +11,7 @@ export const useAppointments = (currentDate: Date, currentView: 'month' | 'week'
     const [error, setError] = useState<string | null>(null);
 
     const fetchGoogleCalendarEvents = useCallback(async () => {
-        const accessToken = session?.provider_token;
-        if (!accessToken) return;
+        if (!session?.user) return; // Ya no dependemos de provider_token, el backend (Edge Function) usa su propio refresh token
 
         console.log(`Fetching events for date: ${currentDate.toISOString()} and view: ${currentView}`);
         setIsLoading(true);
@@ -46,12 +45,12 @@ export const useAppointments = (currentDate: Date, currentView: 'month' | 'week'
         }
 
         try {
-            await googleCalendarService.initializeGapiClient(accessToken);
+            await googleCalendarService.initializeGapiClient('obsoleto');
             
             let userCalendars = await googleCalendarService.listUserCalendars();
             
             if (userCalendars) {
-                userCalendars = userCalendars.map(calendar => {
+                userCalendars = userCalendars.map((calendar: Calendar) => {
                     if (calendar.summary === 'CALENDARIO JOSE') {
                         return { ...calendar, backgroundColor: '#4285F4' }; // Blue color from Google Calendar
                     }
@@ -63,11 +62,11 @@ export const useAppointments = (currentDate: Date, currentView: 'month' | 'week'
 
             if (userCalendars && userCalendars.length > 0) {
                 const calendarsToFetch = (selectedCalendarIds && selectedCalendarIds.length > 0)
-                    ? userCalendars.filter(c => selectedCalendarIds.includes(c.id))
+                    ? userCalendars.filter((c: Calendar) => selectedCalendarIds.includes(c.id))
                     : userCalendars;
 
                 if (calendarsToFetch.length > 0) {
-                    const allEventsPromises = calendarsToFetch.map(calendar => 
+                    const allEventsPromises = calendarsToFetch.map((calendar: Calendar) => 
                         googleCalendarService.listUpcomingEvents(
                             calendar.id, 
                             calendar.backgroundColor,

@@ -15,15 +15,14 @@ const saveGoogleRefreshToken = async (refreshToken: string, userId: string) => {
     console.log('[useAuth] saveGoogleRefreshToken called');
     
     try {
-        console.log('[useAuth] Attempting to save refresh token to Supabase...');
+        console.log('[useAuth] Attempting to save refresh token to user_integrations...');
         const { error } = await supabase
-            .from('notes')
+            .from('user_integrations')
             .upsert({ 
                 user_id: userId,
-                title: 'google_refresh_token', 
-                content: refreshToken,
-                updatedAt: new Date().toISOString()
-            }, { onConflict: 'user_id,title' });
+                google_refresh_token: refreshToken,
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'user_id' });
 
         if (error) {
             console.error('[useAuth] Error saving Google refresh token:', error);
@@ -32,30 +31,6 @@ const saveGoogleRefreshToken = async (refreshToken: string, userId: string) => {
         }
     } catch (error) {
         console.error('[useAuth] Exception saving Google refresh token:', error);
-    }
-};
-
-const saveGoogleAccessToken = async (accessToken: string, userId: string) => {
-    console.log('[useAuth] saveGoogleAccessToken called');
-    
-    try {
-        console.log('[useAuth] Attempting to save access token to Supabase...');
-        const { error } = await supabase
-            .from('notes')
-            .upsert({ 
-                user_id: userId,
-                title: 'google_access_token', 
-                content: accessToken,
-                updatedAt: new Date().toISOString()
-            }, { onConflict: 'user_id,title' });
-
-        if (error) {
-            console.error('[useAuth] Error saving Google access token:', error);
-        } else {
-            console.log('[useAuth] Google access token saved successfully');
-        }
-    } catch (error) {
-        console.error('[useAuth] Exception saving Google access token:', error);
     }
 };
 
@@ -86,12 +61,10 @@ export const useAuth = () => {
                         setIsAuthenticated(true);
                         console.log('[useAuth] User authenticated successfully');
 
-                        // Si es un login con Google, guardar los tokens (COMPLETAMENTE DESHABILITADO PARA DEBUGGING)
-                        if (event === 'SIGNED_IN' && session?.provider_token) {
-                            console.log('[useAuth] Google login detected - token saving COMPLETELY DISABLED for debugging');
-                            console.log('[useAuth] Has access token:', !!session.provider_token);
-                            console.log('[useAuth] Has refresh token:', !!session.provider_refresh_token);
-                            console.log('[useAuth] Skipping token saving to isolate re-render issue');
+                        // Si es un login con Google, guardar el refresh token
+                        if (event === 'SIGNED_IN' && session?.provider_refresh_token) {
+                            console.log('[useAuth] Google login detected - Saving refresh token');
+                            await saveGoogleRefreshToken(session.provider_refresh_token, supabaseUser.id);
                         }
                     } else {
                         console.log('[useAuth] No user session, setting unauthenticated state');
@@ -122,8 +95,7 @@ export const useAuth = () => {
             options: {
                 scopes: 'https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events',
                 queryParams: {
-                    access_type: 'offline',
-                    prompt: 'consent'
+                    access_type: 'offline'
                 }
             }
         });
