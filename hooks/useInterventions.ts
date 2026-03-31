@@ -7,14 +7,26 @@ interface UseInterventionsProps {
     onNewIntervention?: () => void;
 }
 
+// --- CACHÉ EN MEMORIA PARA SOLUCIONAR PANTALLAS BLANCAS ---
+const interventionsCache = { data: null as Intervention[] | null, timestamp: 0 };
+const CACHE_TTL_MS = 1000 * 60 * 5; // 5 minutos
+
 export const useInterventions = ({ onNewIntervention }: UseInterventionsProps = {}) => {
     const [interventions, setInterventions] = useState<Intervention[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const fetchInterventions = useCallback(async () => {
+        const isCacheValid = interventionsCache.data && (Date.now() - interventionsCache.timestamp < CACHE_TTL_MS);
+
+        if (isCacheValid) {
+            setInterventions(interventionsCache.data!);
+            setIsLoading(false); // Carga instantánea desde memoria
+        } else {
+            setIsLoading(!interventionsCache.data); // Muestra Skeleton solo la primera vez en la vida de la app
+        }
+
         try {
-            setIsLoading(true);
             setError(null);
 
             const { data, error: fetchError } = await supabase
@@ -24,7 +36,12 @@ export const useInterventions = ({ onNewIntervention }: UseInterventionsProps = 
 
             if (fetchError) throw fetchError;
 
-            setInterventions(data || []);
+            const fetchedData = data || [];
+            setInterventions(fetchedData);
+            
+            // Actualizar la caché global
+            interventionsCache.data = fetchedData;
+            interventionsCache.timestamp = Date.now();
         } catch (e) {
             setError('Error al cargar las intervenciones.');
             console.error('Error fetching interventions:', e);

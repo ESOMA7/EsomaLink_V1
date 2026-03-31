@@ -1,20 +1,39 @@
 import { useState, useEffect, useCallback } from 'react';
-import { AppointmentEvent, Calendar } from '@/types';
+import { AppointmentEvent, UserCalendar } from '@/types';
 import * as googleCalendarService from '../services/googleCalendarService';
 import { useAuth } from './useAuth';
+
+// --- CACHÉ EN MEMORIA PARA SOLUCIONAR PANTALLAS BLANCAS ---
+const calendarsCache = { data: null as UserCalendar[] | null, timestamp: 0 };
+const eventsCache = new Map<string, { events: AppointmentEvent[], timestamp: number }>();
+const CACHE_TTL_MS = 1000 * 60 * 5; // 5 minutos
 
 export const useAppointments = (currentDate: Date, currentView: 'month' | 'week' | 'day', selectedCalendarIds?: string[]) => {
     const { session } = useAuth();
     const [events, setEvents] = useState<AppointmentEvent[]>([]);
-    const [calendars, setCalendars] = useState<Calendar[]>([]);
+    const [calendars, setCalendars] = useState<UserCalendar[]>([]);
+    // Si tenemos datos en caché para esta vista, empezamos con isLoading = false para pintar instantáneamente.
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const fetchGoogleCalendarEvents = useCallback(async () => {
-        if (!session?.user) return; // Ya no dependemos de provider_token, el backend (Edge Function) usa su propio refresh token
+        if (!session?.user) return; 
 
-        console.log(`Fetching events for date: ${currentDate.toISOString()} and view: ${currentView}`);
-        setIsLoading(true);
+        // Generamos una llave única para el caché basada en la fecha y la vista actual
+        const cacheKey = `${currentDate.toISOString().substring(0, 10)}_${currentView}`;
+        const cachedEventsData = eventsCache.get(cacheKey);
+        
+        // Estrategia Stale-While-Revalidate (Caché Primero)
+        const isCacheValid = cachedEventsData && (Date.now() - cachedEventsData.timestamp < CACHE_TTL_MS);
+        
+        if (isCacheValid) {
+            setEvents(cachedEventsData.events);
+            if (calendarsCache.data) setCalendars(calendarsCache.data);
+            setIsLoading(false); // Carga y dibujo instantáneo en el DOM
+        } else {
+            setIsLoading(true); // Solo ponemos estado de carga la primera vez que se visita o si expiró
+        }
+
         setError(null);
 
         let timeMin: Date, timeMax: Date;
@@ -47,26 +66,31 @@ export const useAppointments = (currentDate: Date, currentView: 'month' | 'week'
         try {
             await googleCalendarService.initializeGapiClient('obsoleto');
             
-            let userCalendars = await googleCalendarService.listUserCalendars();
-            
-            if (userCalendars) {
-                userCalendars = userCalendars.map((calendar: Calendar) => {
-                    if (calendar.summary === 'CALENDARIO JOSE') {
-                        return { ...calendar, backgroundColor: '#4285F4' }; // Blue color from Google Calendar
-                    }
-                    return calendar;
-                });
+            let userCalendars = calendarsCache.data;
+            if (!userCalendars || Date.now() - calendarsCache.timestamp >= CACHE_TTL_MS) {
+                 userCalendars = await googleCalendarService.listUserCalendars();
+                 
+                 if (userCalendars) {
+                     userCalendars = userCalendars.map((calendar: UserCalendar) => {
+                         if (calendar.summary === 'CALENDARIO JOSE') {
+                             return { ...calendar, backgroundColor: '#4285F4' }; 
+                         }
+                         return calendar;
+                     });
+                     calendarsCache.data = userCalendars;
+                     calendarsCache.timestamp = Date.now();
+                 }
             }
-
+            
             setCalendars(userCalendars || []);
 
             if (userCalendars && userCalendars.length > 0) {
                 const calendarsToFetch = (selectedCalendarIds && selectedCalendarIds.length > 0)
-                    ? userCalendars.filter((c: Calendar) => selectedCalendarIds.includes(c.id))
+                    ? userCalendars.filter((c: UserCalendar) => selectedCalendarIds.includes(c.id))
                     : userCalendars;
 
                 if (calendarsToFetch.length > 0) {
-                    const allEventsPromises = calendarsToFetch.map((calendar: Calendar) => 
+                    const allEventsPromises = calendarsToFetch.map((calendar: UserCalendar) => 
                         googleCalendarService.listUpcomingEvents(
                             calendar.id, 
                             calendar.backgroundColor,
@@ -84,7 +108,11 @@ export const useAppointments = (currentDate: Date, currentView: 'month' | 'week'
                         }
                     });
                     const uniqueEvents = Array.from(uniqueEventsMap.values());
+                    
                     setEvents(uniqueEvents);
+                    
+                    // Actualizar Caché de Eventos
+                    eventsCache.set(cacheKey, { events: uniqueEvents, timestamp: Date.now() });
                 } else {
                     setEvents([]);
                 }
@@ -93,7 +121,10 @@ export const useAppointments = (currentDate: Date, currentView: 'month' | 'week'
             }
         } catch (err: any) {
             console.error('Error fetching Google Calendar events:', err);
-            setError('Failed to fetch calendar events. Please try again.');
+            // Solo mostramos error si no había nada en caché
+            if (!isCacheValid) {
+                setError('Failed to fetch calendar events. Please try again.');
+            }
         } finally {
             setIsLoading(false);
         }

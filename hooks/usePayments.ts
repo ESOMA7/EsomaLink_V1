@@ -4,19 +4,30 @@ import { Payment } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from './useAuth';
 
+// --- CACHÉ EN MEMORIA PARA SOLUCIONAR PANTALLAS BLANCAS ---
+const paymentsCache = { data: null as Payment[] | null, timestamp: 0 };
+const CACHE_TTL_MS = 1000 * 60 * 5; // 5 minutos
+
 export const usePayments = () => {
     const { user } = useAuth();
     const [payments, setPayments] = useState<Payment[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const fetchPayments = useCallback(async () => {
         if (!user) return;
 
-        setIsLoading(true);
-        setError(null);
+        const isCacheValid = paymentsCache.data && (Date.now() - paymentsCache.timestamp < CACHE_TTL_MS);
+
+        if (isCacheValid) {
+            setPayments(paymentsCache.data!);
+            setIsLoading(false); // Carga instantánea desde memoria
+        } else {
+            setIsLoading(!paymentsCache.data); // Muestra esqueleto solo si nunca había cargado
+        }
 
         try {
+            setError(null);
             const { data, error: fetchError } = await supabase
                 .from('payments')
                 .select('*')
@@ -24,7 +35,12 @@ export const usePayments = () => {
 
             if (fetchError) throw fetchError;
 
-            setPayments(data || []);
+            const fetchedData = data || [];
+            setPayments(fetchedData);
+            
+            // Actualizar la caché global
+            paymentsCache.data = fetchedData;
+            paymentsCache.timestamp = Date.now();
         } catch (e: any) {
             setError('Error al cargar los pagos: ' + e.message);
             console.error(e);
