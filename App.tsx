@@ -11,16 +11,16 @@ import { useAuth } from '@/hooks';
 import { Intervention, Payment, WaitingPatient, View } from './types';
 import { Toaster, toast } from 'react-hot-toast';
 import { LoaderCircle } from 'lucide-react';
+import { supabase } from './services/supabaseClient';
+import { requestDesktopNotificationPermission, sendDesktopNotification } from './services/desktopNotificationService';
 
 const App: React.FC = () => {
     const { isAuthenticated, isAuthLoading, authError, setAuthError, loginWithGoogle, logout: supabaseLogout } = useAuth();
 
-    // Removed currentView state as we now use React Router
     const [theme, setTheme] = useState<'light' | 'dark'>(() => (localStorage.getItem('theme') as 'light' | 'dark') || 'light');
     const [areNotificationsEnabled, setAreNotificationsEnabled] = useState(() => localStorage.getItem('notifications') === 'true');
     const [tempInterventions, setTempInterventions] = useState<Intervention[]>([]);
-
-    // No data fetching hooks here anymore - moved to individual wrappers
+    const [newInterventionAvailable, setNewInterventionAvailable] = useState(false);
 
     const [interventionModalState, setInterventionModalState] = useState<{ isOpen: boolean; intervention: Intervention | null; }>({ isOpen: false, intervention: null });
     const [paymentModalState, setPaymentModalState] = useState<{ isOpen: boolean; payment: Payment | null; }>({ isOpen: false, payment: null });
@@ -35,7 +35,33 @@ const App: React.FC = () => {
 
     useEffect(() => {
         localStorage.setItem('notifications', String(areNotificationsEnabled));
+        if (areNotificationsEnabled) {
+            requestDesktopNotificationPermission();
+        }
     }, [areNotificationsEnabled]);
+
+    // Listener Global de Supabase para Notificaciones de Escritorio
+    useEffect(() => {
+        if (!isAuthenticated || !areNotificationsEnabled) return;
+
+        const globalChannel = supabase
+            .channel('global-interventions-notifications')
+            .on(
+                'postgres_changes',
+                { event: 'INSERT', schema: 'public', table: 'interventions' },
+                (payload) => {
+                    const newIntervention = payload.new as Intervention;
+                    setNewInterventionAvailable(true);
+                    toast.success(`¡Nueva Intervención: ${newIntervention.nombre}!`, { icon: '🔔' });
+                    sendDesktopNotification('Nueva Intervención Creada', `Paciente: ${newIntervention.nombre}\nDetalles: ${newIntervention.caso}`);
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(globalChannel);
+        };
+    }, [isAuthenticated, areNotificationsEnabled]);
 
     const handleLogout = () => {
         setConfirmationModalState({
@@ -49,17 +75,11 @@ const App: React.FC = () => {
         });
     };
 
-    // Modal handlers will be implemented in individual wrappers
-
-    // Removed other handlers as they're now in wrappers
-
     const handleTestNewIntervention = () => {
         if (areNotificationsEnabled) {
             toast.success('¡Nueva intervención de prueba recibida!', { icon: '🔔' });
-            const audio = new Audio('/notification.mp3');
-            audio.play().catch(error => {
-                console.warn('No se pudo reproducir el sonido de notificación automáticamente:', error);
-            });
+            sendDesktopNotification('Intervención de Prueba', 'Esta es una validación nativa del sistema.');
+            setNewInterventionAvailable(true);
         }
 
         const fakeIntervention: Intervention = {
